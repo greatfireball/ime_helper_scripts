@@ -1,5 +1,7 @@
 # fastq-shuffle.pl
 
+If you are using this script, please cite [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1012747.svg)](https://doi.org/10.5281/zenodo.1012747).
+
 A small program to convert and combine bismark coverage output files
 into DSS input files.
 
