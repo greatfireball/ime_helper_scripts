@@ -64,6 +64,10 @@ First working version.
 New version using array instead of hashes to reduce memory
 consumption.
 
+=item 2017-10-16 v0.1.2
+
+Fixing the documentation
+
 =back
 
 =head1 COPYRIGHT AND LICENCE
@@ -92,7 +96,7 @@ SOFTWARE.
 
 =cut
 
-use version 0.77; our $VERSION = version->declare("v0.1.1");
+use version 0.77; our $VERSION = version->declare("v0.1.2");
 
 my @infiles = @ARGV;
 my @dat     = ();
