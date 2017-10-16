@@ -39,7 +39,7 @@ stdout.
 
 =item Bismark
 
-A mapper for bs-seq C<>
+A mapper for bs-seq C<https://www.bioinformatics.babraham.ac.uk/projects/bismark/>
 
 =item DSS
 
