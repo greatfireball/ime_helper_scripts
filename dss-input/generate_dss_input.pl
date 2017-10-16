@@ -4,7 +4,7 @@ use warnings;
 
 use IO::Uncompress::Gunzip qw($GunzipError);
 
-=head1 fastq-shuffle.pl
+=head1 generate_dss_input.pl
 
 A small program to convert and combine bismark coverage output files
 into DSS input files.
