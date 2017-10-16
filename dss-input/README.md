@@ -1,4 +1,4 @@
-# fastq-shuffle.pl
+# generate\_dss\_input.pl
 
 If you are using this script, please cite [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1012747.svg)](https://doi.org/10.5281/zenodo.1012747).
 
@@ -13,10 +13,10 @@ into DSS input files.
 
 The output is a csv file containing a header and the columns
 
-- 1. chr
-- 2. pos
-- 3. N
-- 4. X
+1. chr
+2. pos
+3. N
+4. X
 
 as required by DSS. The counts for total coverage and methylated
 coverage of all input files is combined and the sum will be printed to
@@ -46,6 +46,10 @@ This script was written by Frank Förster `frank.foerster@ime.fraunhofer.de`.
 
     New version using array instead of hashes to reduce memory
     consumption.
+
+- 2017-10-16 v0.1.2
+
+    Fixing the documentation
 
 # COPYRIGHT AND LICENCE
 
