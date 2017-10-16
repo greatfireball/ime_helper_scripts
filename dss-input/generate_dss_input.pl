@@ -59,6 +59,11 @@ This script was written by Frank FE<ouml>rster C<frank.foerster@ime.fraunhofer.d
 
 First working version.
 
+=item 2017-10-16 v0.1.1
+
+New version using array instead of hashes to reduce memory
+consumption.
+
 =back
 
 =head1 COPYRIGHT AND LICENCE
@@ -87,51 +92,57 @@ SOFTWARE.
 
 =cut
 
-use version 0.77; our $VERSION = version->declare("v0.1.0");
+use version 0.77; our $VERSION = version->declare("v0.1.1");
 
 my @infiles = @ARGV;
-my %dat     = ();
+my @dat     = ();
+my %chromosomes = ();
 
-foreach my $file (@infiles) {
+for(my $i=0; $i<@infiles; $i++) {
+    print STDERR "Starting import of file '$infiles[$i]'...\n";
+
     my $z;
-    if ($file =~ /\.gz$/)
+    if ($infiles[$i] =~ /\.gz$/)
     {
-	$z = new IO::Uncompress::Gunzip $file || die "gunzip files $GunzipError\n";
+	$z = new IO::Uncompress::Gunzip $infiles[$i] || die "gunzip files $GunzipError\n";
     } else {
-	open( $z, "<", $file ) || die "$!";
+	open( $z, "<", $infiles[$i] ) || die "$!";
     }
     while (<$z>) {
         chomp $_;
         my ( $chr, $start, $end, $methyl_percent, $count_methyl,
             $count_notmethyl )
-          = split( /\t/, $_ );
+	    = split( /\t/, $_ );
+
+	unless (exists $chromosomes{$chr})
+	{
+	    $chromosomes{$chr} = int(keys %chromosomes);
+	}
 
         for ( my $pos = $start ; $pos <= $end ; $pos++ ) {
-            if ( !exists $dat{$chr}{$pos}{$file} )
-            {
-                $dat{$chr}{$pos}{$file} =
-                  [ $count_methyl + $count_notmethyl, $count_methyl ];
-            }
-            else {
-                die "Something wrong for $chr $pos $file";
-            }
+	    $dat[$chromosomes{$chr}][$pos][$i] = [ $count_methyl + $count_notmethyl, $count_methyl ];
         }
     }
     close($z) || die "$!";
+
+    print STDERR "Finished import of file '$infiles[$i]'\n";
 }
 
 # printed overall sums sorted by chromosome followed by position
+print STDERR "All files are imported! Starting output generation...\n";
 print join( "\t", ( "chr", "pos", "N", "X" ) ), "\n";
-foreach my $chr ( sort keys %dat ) {
-    foreach my $pos ( sort { $a <=> $b } ( keys %{ $dat{$chr} } ) ) {
+foreach my $chr ( sort keys %chromosomes ) {
+    for(my $pos=0; $pos<@{$dat[$chromosomes{$chr}]}; $pos++ ) {
+	next unless (defined $dat[$chromosomes{$chr}][$pos]);
         my ( $total_count, $methyl_count ) = ( 0, 0 );
-        foreach my $file (@infiles) {
-            if ( exists $dat{$chr}{$pos}{$file} ) {
-                $total_count  += $dat{$chr}{$pos}{$file}[0];
-                $methyl_count += $dat{$chr}{$pos}{$file}[1];
+        for(my $i=0; $i<@infiles; $i++) {
+            if ( $dat[$chromosomes{$chr}][$pos][$i] ) {
+                $total_count  += $dat[$chromosomes{$chr}][$pos][$i][0];
+                $methyl_count += $dat[$chromosomes{$chr}][$pos][$i][1];
             }
         }
 
         print join( "\t", ( $chr, $pos, $total_count, $methyl_count ) ), "\n";
     }
 }
+print STDERR "Finished output generation! Thank you for using this script.\n";
