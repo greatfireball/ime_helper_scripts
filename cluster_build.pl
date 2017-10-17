@@ -21,15 +21,11 @@ close(FH) || die "$!";
 
 foreach my $chr (keys %chromosomes)
 {
-    my $num_mirnas_plus = (exists $chromosomes{$chr}{'+'}) ? @{$chromosomes{$chr}{'+'}} : 0;
-    my $num_mirnas_minus = (exists $chromosomes{$chr}{'-'}) ? @{$chromosomes{$chr}{'-'}} : 0;
-    if ($num_mirnas_plus <= 1)
+    foreach my $strand (qw(+ -))
     {
-	print STDERR "Skipping chromosome $chr plus strand, due to its single miRNA content.\n";
+	if (exists $chromosomes{$chr}{$strand} && @{$chromosomes{$chr}{$strand}} <= 1)
+	{
+	    print STDERR "Skipping chromosome $chr($strand), due to its single miRNA content.\n";
+	}
     }
-    if ($num_mirnas_minus <= 1)
-    {
-	print STDERR "Skipping chromosome $chr minus strand, due to its single miRNA content.\n";
-    }
-
 }
