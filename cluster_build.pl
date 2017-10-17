@@ -19,13 +19,21 @@ while (<FH>)
 }
 close(FH) || die "$!";
 
-foreach my $chr (keys %chromosomes)
+foreach my $chr (sort keys %chromosomes)
 {
     foreach my $strand (qw(+ -))
     {
-	if (exists $chromosomes{$chr}{$strand} && @{$chromosomes{$chr}{$strand}} <= 1)
+	if (! exists $chromosomes{$chr}{$strand})
+	{
+	    print STDERR "Skipping chromosome $chr($strand), due to it contains no miRNA.\n";
+	}
+	elsif (@{$chromosomes{$chr}{$strand}} <= 1)
 	{
 	    print STDERR "Skipping chromosome $chr($strand), due to its single miRNA content.\n";
+	} elsif (@{$chromosomes{$chr}{$strand}} > 1)
+	{
+	} else {
+	    die "Should never happen";
 	}
     }
 }
