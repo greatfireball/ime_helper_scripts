@@ -100,6 +100,8 @@ SOFTWARE.
 
 =cut
 
+use version 0.77; our $VERSION = version->declare("v0.1.3");
+
 my $inputfile = shift @ARGV;
 my $clustersize = shift @ARGV || 6000;
 
