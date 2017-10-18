@@ -102,6 +102,11 @@ SOFTWARE.
 
 use version 0.77; our $VERSION = version->declare("v0.1.3");
 
+unless (@ARGV)
+{
+    die "You need to specify at least an input file. For further information see perldock cluster_build.pl.";
+}
+
 my $inputfile = shift @ARGV;
 my $clustersize = shift @ARGV || 6000;
 
