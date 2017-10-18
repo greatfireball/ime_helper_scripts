@@ -129,7 +129,14 @@ unless (@ARGV)
 }
 
 my $inputfile = shift @ARGV;
-my $clustersize = shift @ARGV || 6000;
+my @clustersizes = (@ARGV);
+
+unless (@clustersizes)
+{
+    @clustersizes = (6000);
+}
+
+@clustersizes = split(/,/, join(",", @clustersizes));
 
 my %chromosomes = ();
 my %pos_2_mirna = ();
@@ -148,70 +155,76 @@ while (<FH>)
 }
 close(FH) || die "$!";
 
-foreach my $chr (sort keys %chromosomes)
-{
-    foreach my $strand (qw(+ -))
-    {
-	if (! exists $chromosomes{$chr}{$strand})
-	{
-	    print STDERR "Skipping chromosome $chr($strand), due to it contains no miRNA.\n";
-	}
-	elsif (@{$chromosomes{$chr}{$strand}} <= 1)
-	{
-	    print STDERR "Skipping chromosome $chr($strand), due to its single miRNA content.\n";
-	} elsif (@{$chromosomes{$chr}{$strand}} > 1)
-	{
-	    my $g = Graph::Undirected->new;
 
-	    for (my $i=0; $i<@{$chromosomes{$chr}{$strand}}-1; $i++)
+foreach my $clustersize (@clustersizes)
+{
+
+    foreach my $chr (sort keys %chromosomes)
+    {
+	foreach my $strand (qw(+ -))
+	{
+	    if (! exists $chromosomes{$chr}{$strand})
 	    {
-		for (my $j=$i+1; $j<@{$chromosomes{$chr}{$strand}}; $j++)
+		print STDERR "Skipping chromosome $chr($strand), due to it contains no miRNA.\n";
+	    }
+	    elsif (@{$chromosomes{$chr}{$strand}} <= 1)
+	    {
+		print STDERR "Skipping chromosome $chr($strand), due to its single miRNA content.\n";
+	    } elsif (@{$chromosomes{$chr}{$strand}} > 1)
+	    {
+		my $g = Graph::Undirected->new;
+
+		for (my $i=0; $i<@{$chromosomes{$chr}{$strand}}-1; $i++)
 		{
-		    # add both nodes if they are not already present
-		    foreach my $v ($i, $j)
+		    for (my $j=$i+1; $j<@{$chromosomes{$chr}{$strand}}; $j++)
 		    {
-			unless ($g->has_vertex($chromosomes{$chr}{$strand}[$v]{pos_number}))
+			# add both nodes if they are not already present
+			foreach my $v ($i, $j)
 			{
-			    $g->add_vertex($chromosomes{$chr}{$strand}[$v]{pos_number});
+			    unless ($g->has_vertex($chromosomes{$chr}{$strand}[$v]{pos_number}))
+			    {
+				$g->add_vertex($chromosomes{$chr}{$strand}[$v]{pos_number});
+			    }
+			}
+
+			# use the smaller distance between start of one and stop of the other miRNA position
+			my $dist = abs($chromosomes{$chr}{$strand}[$i]{start}-$chromosomes{$chr}{$strand}[$j]{stop});
+			if (abs($chromosomes{$chr}{$strand}[$i]{stop}-$chromosomes{$chr}{$strand}[$j]{start}) < $dist)
+			{
+			    $dist = abs($chromosomes{$chr}{$strand}[$i]{stop}-$chromosomes{$chr}{$strand}[$j]{start});
+			}
+
+			# if the dist is smaller than the maximal allowed cluster distance, create a connection
+			if ($dist <= $clustersize)
+			{
+			    # add an edge between the nodes
+			    $g->add_edge($chromosomes{$chr}{$strand}[$i]{pos_number}, $chromosomes{$chr}{$strand}[$j]{pos_number});
 			}
 		    }
-
-		    # use the smaller distance between start of one and stop of the other miRNA position
-		    my $dist = abs($chromosomes{$chr}{$strand}[$i]{start}-$chromosomes{$chr}{$strand}[$j]{stop});
-		    if (abs($chromosomes{$chr}{$strand}[$i]{stop}-$chromosomes{$chr}{$strand}[$j]{start}) < $dist)
-		    {
-			$dist = abs($chromosomes{$chr}{$strand}[$i]{stop}-$chromosomes{$chr}{$strand}[$j]{start});
-		    }
-
-		    # if the dist is smaller than the maximal allowed cluster distance, create a connection
-		    if ($dist <= $clustersize)
-		    {
-			# add an edge between the nodes
-			$g->add_edge($chromosomes{$chr}{$strand}[$i]{pos_number}, $chromosomes{$chr}{$strand}[$j]{pos_number});
-		    }
 		}
-	    }
 
-	    # get all connected components as clustes
-	    my @clusters = $g->connected_components();
+		# get all connected components as clustes
+		my @clusters = $g->connected_components();
 
-	    foreach my $cluster (@clusters)
-	    {
-		my @clustered_miRNAs = sort {$a->{start} <=> $b->{stop} || $a->{stop} <=> $b->{stop}} map {$pos_2_mirna{$_}} (@{$cluster});
-		if (@clustered_miRNAs > 1)
+		foreach my $cluster (@clusters)
 		{
-		    my $cluster_start = $clustered_miRNAs[0]{start};
-		    my $cluster_stop  = $clustered_miRNAs[@clustered_miRNAs-1]{start};
+		    my @clustered_miRNAs = sort {$a->{start} <=> $b->{stop} || $a->{stop} <=> $b->{stop}} map {$pos_2_mirna{$_}} (@{$cluster});
+		    if (@clustered_miRNAs > 1)
+		    {
+			my $cluster_start = $clustered_miRNAs[0]{start};
+			my $cluster_stop  = $clustered_miRNAs[@clustered_miRNAs-1]{start};
 
-		    printf "Cluster of miRNAs (border-size: %d) on chromosome %s(%s) (%d-%d) containing %d miRNAs: %s\n", $clustersize, $chr, $strand, $cluster_start, $cluster_stop, (@clustered_miRNAs+0), join(", ", map {$_->{mirna}} (@clustered_miRNAs));
-		} else {
-		    my $singleton = $clustered_miRNAs[0];
-		    printf STDERR "Single miRNA cluster for miRNA %d on chromosome %s(%s) (%d-%d)\n", $singleton->{mirna}, $chr, $strand, $singleton->{start}, $singleton->{stop};
+			printf STDERR "Cluster of miRNAs (border-size: %d) on chromosome %s(%s) (%d-%d) containing %d miRNAs: %s\n", $clustersize, $chr, $strand, $cluster_start, $cluster_stop, (@clustered_miRNAs+0), join(", ", map {$_->{mirna}} (@clustered_miRNAs));
+
+		    } else {
+			my $singleton = $clustered_miRNAs[0];
+			printf STDERR "Single miRNA cluster for miRNA %d on chromosome %s(%s) (%d-%d)\n", $singleton->{mirna}, $chr, $strand, $singleton->{start}, $singleton->{stop};
+		    }
 		}
-	    }
 
-	} else {
-	    die "Should never happen";
+	    } else {
+		die "Should never happen";
+	    }
 	}
     }
 }
