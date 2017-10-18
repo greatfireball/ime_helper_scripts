@@ -17,6 +17,23 @@ table of miRNA positions.
     # build a list of clusters with max distance 7500 nt from input.csv
     cluster_build.pl input.csv 7500
 
+=head1 PARAMETER
+
+=over 4
+
+=item Input file
+
+First parameter is the input csv file.
+
+=item cluster size
+
+Second parameter is the maximum distance between two miRNAs still
+belonging to the same cluster. If no parameter is provided, 6000 is
+assumend. If multiple clustersizes should be testes, just put them
+comma/space separated as second parameter.
+
+=back
+
 =head1 INPUT
 
 A csv file with comma as field separator containing the following
@@ -71,6 +88,10 @@ This script was written by Frank FE<ouml>rster C<frank.foerster@ime.fraunhofer.d
 =item 2017-10-18 v0.1.2
 
 First working version.
+
+=item 2017-10-18 v0.1.3
+
+Updated documentation/allows multiple cluster sizes
 
 =back
 
