@@ -140,6 +140,7 @@ unless (@clustersizes)
 
 my %chromosomes = ();
 my %pos_2_mirna = ();
+my $clusterid = 0;
 
 open(FH, "<", $inputfile) || die "$!";
 while (<FH>)
@@ -216,6 +217,12 @@ foreach my $clustersize (@clustersizes)
 
 			printf STDERR "Cluster of miRNAs (border-size: %d) on chromosome %s(%s) (%d-%d) containing %d miRNAs: %s\n", $clustersize, $chr, $strand, $cluster_start, $cluster_stop, (@clustered_miRNAs+0), join(", ", map {$_->{mirna}} (@clustered_miRNAs));
 
+			# print the output for the cluster table
+			$clusterid++;
+			foreach my $position_id (@{$cluster})
+			{
+			    print join(",", ($clusterid, $position_id, $clustersize)), "\n";
+			}
 		    } else {
 			my $singleton = $clustered_miRNAs[0];
 			printf STDERR "Single miRNA cluster for miRNA %d on chromosome %s(%s) (%d-%d)\n", $singleton->{mirna}, $chr, $strand, $singleton->{start}, $singleton->{stop};
