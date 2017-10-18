@@ -5,6 +5,101 @@ use warnings;
 
 use Graph::Undirected;
 
+=pod
+
+=head1 cluster_build.pl
+
+A small program to generate miRNA clusters for our database based on a
+table of miRNA positions.
+
+=head1 SYNOPSIS
+
+    # build a list of clusters with max distance 7500 nt from input.csv
+    cluster_build.pl input.csv 7500
+
+=head1 INPUT
+
+A csv file with comma as field separator containing the following
+information:
+
+=over 4
+
+=item position_entry_id [mandatory, unique]
+
+=item genome_id
+
+=item start_position [mandatory]
+
+=item stop_position [mandatory]
+
+=item chromosome [mandatory]
+
+=item strand [mandatory]
+
+=item miRNA [mandatory]
+
+=back
+
+Quotes will be stripped out.
+
+=head1 OUTPUT
+
+Output will be printed to STDOUT and additional information are
+printed to STDERR. The csv content of STDOUT contains the following
+columns:
+
+=over 4
+
+=item cluster_id
+
+=item position_entry_id
+
+=item maximal_distance
+
+=back
+
+The columns are comma separated.
+
+=head1 AUTHOR
+
+This script was written by Frank FE<ouml>rster C<frank.foerster@ime.fraunhofer.de>.
+
+=head1 CHANGELOG
+
+=over 4
+
+=item 2017-10-18 v0.1.2
+
+First working version.
+
+=back
+
+=head1 COPYRIGHT AND LICENCE
+
+MIT License
+
+Copyright (c) 2017 Frank FE<ouml>rster
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+=cut
+
 my $inputfile = shift @ARGV;
 my $clustersize = shift @ARGV || 6000;
 
