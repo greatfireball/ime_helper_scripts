@@ -41,22 +41,17 @@ while (<FH>)
 	}
     }
 
-    unless (exists $gff{$chr}{$name})
-    {
-	$gff{$chr}{$name} = {
-	    chromosome => $chr,
-	    source => $source,
-	    type => $type,
-	    start => $start,
-	    stop => $stop,
-	    score => $score,
-	    strand => $strand,
-	    phase => $phase,
-	    attributes => \%attributes
-	};
-    } else {
-	warn "Entry exists for line '$_'\n";
-    }
+    push(@{$gff{$chr}}, {
+	chromosome => $chr,
+	source => $source,
+	type => $type,
+	start => $start,
+	stop => $stop,
+	score => $score,
+	strand => $strand,
+	phase => $phase,
+	attributes => \%attributes
+	 });
 }
 
 close(FH) || die "$!\n";
