@@ -41,17 +41,16 @@ while (<FH>)
 	}
     }
 
-    push(@{$gff{$chr}}, {
-	chromosome => $chr,
-	source => $source,
-	type => $type,
-	start => $start,
-	stop => $stop,
-	score => $score,
-	strand => $strand,
-	phase => $phase,
-	attributes => \%attributes
-	 });
+    push(@{$gff{$chr}}, [$source, $type, $start, $stop, $score, $strand, $phase, \%attributes]);
 }
 
 close(FH) || die "$!\n";
+
+warn "Sorting information\n";
+
+foreach my $chr (keys %gff)
+{
+    @{$gff{$chr}} = sort {$a->[2] <=> $b->[2] || $a->[3] <=> $b->[3] || $a->[1] cmp $b->[1]} @{$gff{$chr}};
+}
+
+warn "Finished\n";
