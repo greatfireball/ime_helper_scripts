@@ -143,6 +143,8 @@ for(my $i=0; $i<@csv; $i++)
     my $csv = $csv[$i];
     my $new = $new[$i];
 
+    warn sprintf("##### Starting work on input file '%s' for output file '%s'\n", $csv, $new);
+
     my @rows = ();
     my $csv_parser = Text::CSV->new ( { binary => 1, sep_char => "\t" } )  # should set binary attribute.
 	or die "Cannot use CSV: ".Text::CSV->error_diag ();
