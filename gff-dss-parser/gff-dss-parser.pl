@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Text::CSV;
+use Bio::Range;
 
 my %gff = ();
 my $counter = 0;
@@ -64,7 +65,7 @@ warn "Sorting information\n";
 
 foreach my $chr (keys %gff)
 {
-    @{$gff{$chr}} = sort {$a->{start} <=> $b->{start} || $a->{stop} <=> $b->{stop} || $a->{type} cmp $b->{type}} @{$gff{$chr}};
+    @{$gff{$chr}} = map {{range => Bio::Range->new(-start => $_->{start}, -end => $_->{stop}, -strand => 0), orig => $_ }} sort {$a->{start} <=> $b->{start} || $a->{stop} <=> $b->{stop} || $a->{type} cmp $b->{type}} @{$gff{$chr}};
 }
 
 warn "Finished\n";
@@ -84,6 +85,28 @@ while ( my $row = $csv_parser->getline( $fh ) )
     if ($row->[0] =~ /^gi\|\d+\|gb\|([^|]+)\|$/)
     {
 	$row->[0] = $1;
+    }
+
+    # are there annotations for the given region
+    my $chr = $row->[0];
+    my $start = $row->[1]+0;
+    my $stop = $row->[2]+0;
+
+    my $target = Bio::Range->new(-start => $start, -end => $stop, -strand => 0);
+
+    if (exists $gff{$chr})
+    {
+	# find annotations
+	my @annotations = grep { my $r = $_->{range}; $r->overlaps($target); } (@{$gff{$chr}});
+	my @types = sort map {$_->{orig}{type}} (@annotations);
+
+	push(@{$row}, "-", join(":", @types));
+    } else {
+	# no entry was found for chromosome
+
+	warn "Missing entry for chromosome '$chr'... Assume no annoation\n";
+
+	push(@{$row}, "none", "none");
     }
 
     push(@rows, $row);
