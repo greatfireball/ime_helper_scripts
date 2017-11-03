@@ -35,7 +35,8 @@ unless (@csv)
 
 unless (@new)
 {
-    die "Missing output file(s). Use --out parameter!\n";
+    warn "Missing output file(s). Deriving output names from input csv files. Otherwise use --out parameter!\n";
+    @new = map {$_.".out"} (@csv);
 }
 
 unless (@csv == @new)
