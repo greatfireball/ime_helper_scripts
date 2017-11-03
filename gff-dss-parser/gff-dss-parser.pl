@@ -15,6 +15,20 @@ my $new = "dmrs_sm0.05.new.csv";
 
 open(FH, "<", $file) || die "$!\n";
 
+my %sort_types = (
+    CDS => 50,
+    downstream => 5,
+    exon => 40,
+    five_prime_UTR => 30,
+    gene => 10,
+    'gene-intron' => 15,
+    intergenic => 5,
+    intron => 25,
+    mRNA => 20,
+    three_prime_UTR => 30,
+    upstream => 5
+    );
+
 while (<FH>)
 {
     chomp();
@@ -98,9 +112,16 @@ while ( my $row = $csv_parser->getline( $fh ) )
     {
 	# find annotations
 	my @annotations = grep { my $r = $_->{range}; $r->overlaps($target); } (@{$gff{$chr}});
-	my @types = sort map {$_->{orig}{type}} (@annotations);
 
-	push(@{$row}, "-", join(":", @types));
+	my %types = ();
+	foreach (@annotations)
+	{
+	    $types{$_->{orig}{type}}++;
+	}
+
+	my @sorted_types = sort { $sort_types{$b} <=> $sort_types{$a} || $a cmp $b } (keys %types);
+
+	push(@{$row}, $sorted_types[0], join(":", map { sprintf("%s(%d)", $_, $types{$_}) } (@sorted_types)));
     } else {
 	# no entry was found for chromosome
 
