@@ -3,10 +3,14 @@
 use strict;
 use warnings;
 
+use Text::CSV;
+
 my %gff = ();
 my $counter = 0;
 
 my $file = "manduca_genomic_regions.gff";
+my $csv = "dmrs_sm0.05.csv";
+my $new = "dmrs_sm0.05.new.csv";
 
 open(FH, "<", $file) || die "$!\n";
 
@@ -64,3 +68,34 @@ foreach my $chr (keys %gff)
 }
 
 warn "Finished\n";
+
+my @rows = ();
+my $csv_parser = Text::CSV->new ( { binary => 1, sep_char => "\t" } )  # should set binary attribute.
+    or die "Cannot use CSV: ".Text::CSV->error_diag ();
+
+open(my $fh, "<:encoding(utf8)", $csv) or die "'$csv': $!";
+
+my $col_names = $csv_parser->getline( $fh );
+$csv_parser->column_names($col_names);
+
+while ( my $row = $csv_parser->getline( $fh ) )
+{
+    # correct sequence name
+    if ($row->[0] =~ /^gi\|\d+\|gb\|([^|]+)\|$/)
+    {
+	$row->[0] = $1;
+    }
+
+    push(@rows, $row);
+}
+$csv_parser->eof or $csv_parser->error_diag();
+close($fh) || die "'$csv': $!";
+
+# write output
+# add a field to the col_names
+$col_names = [ @{$col_names}, "annotation", "all_annotations" ];
+$csv_parser->eol ("\n");
+open($fh, ">:encoding(utf8)", $new) or die "'$new': $!";
+$csv_parser->print ($fh, $col_names);
+$csv_parser->print ($fh, $_) for @rows;
+close($fh) or die "'$new': $!";
