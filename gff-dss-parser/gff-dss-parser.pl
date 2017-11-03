@@ -9,9 +9,33 @@ use Bio::Range;
 my %gff = ();
 my $counter = 0;
 
-my $file = "manduca_genomic_regions.gff";
-my $csv = "dmrs_sm0.05.csv";
-my $new = "dmrs_sm0.05.new.csv";
+my ($file, $csv, $new);
+use Getopt::Long;
+
+GetOptions( 'gff=s' => \$file,
+	    'csv=s' => \$csv,
+	    'out=s' => \$new
+    ) || die;
+
+unless ($file && -e $file)
+{
+    die "Missing input gff. Use --gff parameter!\n";
+}
+
+unless ($csv && -e $csv)
+{
+    die "Missing input cvs. Use --cvs parameter!\n";
+}
+
+unless ($new)
+{
+    die "Missing output filename. Use --out parameter!\n";
+}
+
+unless (! -e $new)
+{
+    die "Output file exists. Please use other name using --out parameter!\n";
+}
 
 open(FH, "<", $file) || die "$!\n";
 
