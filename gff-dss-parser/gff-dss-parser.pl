@@ -53,6 +53,13 @@ my %sort_types = (
     upstream => 5
     );
 
+sub sort_gff_types
+{
+    $sort_types{$b} <=> $sort_types{$a} || $a cmp $b;
+}
+
+warn "Sorting in the following order (top-->down): ", join(", ", sort sort_gff_types (keys %sort_types)), "\n";
+
 while (<FH>)
 {
     chomp();
@@ -143,7 +150,7 @@ while ( my $row = $csv_parser->getline( $fh ) )
 	    $types{$_->{orig}{type}}++;
 	}
 
-	my @sorted_types = sort { $sort_types{$b} <=> $sort_types{$a} || $a cmp $b } (keys %types);
+	my @sorted_types = sort sort_gff_types (keys %types);
 
 	push(@{$row}, $sorted_types[0], join(":", map { sprintf("%s(%d)", $_, $types{$_}) } (@sorted_types)));
     } else {
