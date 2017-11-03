@@ -9,32 +9,54 @@ use Bio::Range;
 my %gff = ();
 my $counter = 0;
 
-my ($file, $csv, $new);
+my $file;
+my @csv;
+my @new;
+
 use Getopt::Long;
 
 GetOptions( 'gff=s' => \$file,
-	    'csv=s' => \$csv,
-	    'out=s' => \$new
+	    'csv=s@' => \@csv,
+	    'out=s@' => \@new
     ) || die;
+
+@csv = split(",", join(",", @csv));
+@new = split(",", join(",", @new));
 
 unless ($file && -e $file)
 {
     die "Missing input gff. Use --gff parameter!\n";
 }
 
-unless ($csv && -e $csv)
+unless (@csv)
 {
-    die "Missing input cvs. Use --cvs parameter!\n";
+    die "Missing input cvs file(s). Use --cvs parameter!\n";
 }
 
-unless ($new)
+unless (@new)
 {
-    die "Missing output filename. Use --out parameter!\n";
+    die "Missing output file(s). Use --out parameter!\n";
 }
 
-unless (! -e $new)
+unless (@csv == @new)
 {
-    die "Output file exists. Please use other name using --out parameter!\n";
+    die "Number of input and output files differ!\n";
+}
+
+foreach my $csv (@csv)
+{
+    unless ($csv && -e $csv)
+    {
+	die "Missing input cvs file '$csv'!\n";
+    }
+}
+
+foreach my $new (@new)
+{
+    unless (! -e $new)
+    {
+	die "Output file '$new' exists. Please use other name using --out parameter!\n";
+    }
 }
 
 open(FH, "<", $file) || die "$!\n";
@@ -115,62 +137,68 @@ foreach my $chr (keys %gff)
 
 warn "Finished\n";
 
-my @rows = ();
-my $csv_parser = Text::CSV->new ( { binary => 1, sep_char => "\t" } )  # should set binary attribute.
-    or die "Cannot use CSV: ".Text::CSV->error_diag ();
-
-open(my $fh, "<:encoding(utf8)", $csv) or die "'$csv': $!";
-
-my $col_names = $csv_parser->getline( $fh );
-$csv_parser->column_names($col_names);
-
-while ( my $row = $csv_parser->getline( $fh ) )
+for(my $i=0; $i<@csv; $i++)
 {
-    # correct sequence name
-    if ($row->[0] =~ /^gi\|\d+\|gb\|([^|]+)\|$/)
+    my $csv = $csv[$i];
+    my $new = $new[$i];
+
+    my @rows = ();
+    my $csv_parser = Text::CSV->new ( { binary => 1, sep_char => "\t" } )  # should set binary attribute.
+	or die "Cannot use CSV: ".Text::CSV->error_diag ();
+
+    open(my $fh, "<:encoding(utf8)", $csv) or die "'$csv': $!";
+
+    my $col_names = $csv_parser->getline( $fh );
+    $csv_parser->column_names($col_names);
+
+    while ( my $row = $csv_parser->getline( $fh ) )
     {
-	$row->[0] = $1;
-    }
-
-    # are there annotations for the given region
-    my $chr = $row->[0];
-    my $start = $row->[1]+0;
-    my $stop = $row->[2]+0;
-
-    my $target = Bio::Range->new(-start => $start, -end => $stop, -strand => 0);
-
-    if (exists $gff{$chr})
-    {
-	# find annotations
-	my @annotations = grep { my $r = $_->{range}; $r->overlaps($target); } (@{$gff{$chr}});
-
-	my %types = ();
-	foreach (@annotations)
+	# correct sequence name
+	if ($row->[0] =~ /^gi\|\d+\|gb\|([^|]+)\|$/)
 	{
-	    $types{$_->{orig}{type}}++;
+	    $row->[0] = $1;
 	}
 
-	my @sorted_types = sort sort_gff_types (keys %types);
+	# are there annotations for the given region
+	my $chr = $row->[0];
+	my $start = $row->[1]+0;
+	my $stop = $row->[2]+0;
 
-	push(@{$row}, $sorted_types[0], join(":", map { sprintf("%s(%d)", $_, $types{$_}) } (@sorted_types)));
-    } else {
-	# no entry was found for chromosome
+	my $target = Bio::Range->new(-start => $start, -end => $stop, -strand => 0);
 
-	warn "Missing entry for chromosome '$chr'... Assume no annoation\n";
+	if (exists $gff{$chr})
+	{
+	    # find annotations
+	    my @annotations = grep { my $r = $_->{range}; $r->overlaps($target); } (@{$gff{$chr}});
 
-	push(@{$row}, "none", "none");
+	    my %types = ();
+	    foreach (@annotations)
+	    {
+		$types{$_->{orig}{type}}++;
+	    }
+
+	    my @sorted_types = sort sort_gff_types (keys %types);
+
+	    push(@{$row}, $sorted_types[0], join(":", map { sprintf("%s(%d)", $_, $types{$_}) } (@sorted_types)));
+	} else {
+	    # no entry was found for chromosome
+
+	    warn "Missing entry for chromosome '$chr'... Assume no annoation\n";
+
+	    push(@{$row}, "none", "none");
+	}
+
+	push(@rows, $row);
     }
+    $csv_parser->eof or $csv_parser->error_diag();
+    close($fh) || die "'$csv': $!";
 
-    push(@rows, $row);
+    # write output
+    # add a field to the col_names
+    $col_names = [ @{$col_names}, "annotation", "all_annotations" ];
+    $csv_parser->eol ("\n");
+    open($fh, ">:encoding(utf8)", $new) or die "'$new': $!";
+    $csv_parser->print ($fh, $col_names);
+    $csv_parser->print ($fh, $_) for @rows;
+    close($fh) or die "'$new': $!";
 }
-$csv_parser->eof or $csv_parser->error_diag();
-close($fh) || die "'$csv': $!";
-
-# write output
-# add a field to the col_names
-$col_names = [ @{$col_names}, "annotation", "all_annotations" ];
-$csv_parser->eol ("\n");
-open($fh, ">:encoding(utf8)", $new) or die "'$new': $!";
-$csv_parser->print ($fh, $col_names);
-$csv_parser->print ($fh, $_) for @rows;
-close($fh) or die "'$new': $!";
