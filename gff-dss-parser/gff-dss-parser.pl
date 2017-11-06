@@ -199,7 +199,7 @@ for(my $i=0; $i<@csv; $i++)
 
 	    warn "Missing entry for chromosome '$chr'... Assume no annoation\n";
 
-	    push(@{$row}, "none", "none");
+	    push(@{$row}, "chr_not_annotated", "chr_not_annotated");
 	}
 
 	push(@rows, $row);
