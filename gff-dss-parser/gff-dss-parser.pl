@@ -78,7 +78,11 @@ my %sort_types = (
 
 sub sort_gff_types
 {
-    $sort_types{$b} <=> $sort_types{$a} || $a cmp $b;
+    my $a_cleaned = $a;
+    $a_cleaned =~ s/[.+-]$//;
+    my $b_cleaned = $b;
+    $b_cleaned =~ s/[.+-]$//;
+    $sort_types{$b_cleaned} <=> $sort_types{$a_cleaned} || $a cmp $b;
 }
 
 warn "Sorting in the following order (top-->down): ", join(", ", sort sort_gff_types (keys %sort_types)), "\n";
@@ -177,10 +181,17 @@ for(my $i=0; $i<@csv; $i++)
 	    my %types = ();
 	    foreach (@annotations)
 	    {
-		$types{$_->{orig}{type}}++;
+		$types{$_->{orig}{type}.$_->{orig}{strand}}++;
 	    }
 
 	    my @sorted_types = sort sort_gff_types (keys %types);
+
+	    # check if no annoation was returned
+	    unless (@sorted_types)
+	    {
+		@sorted_types = ("none");
+		$types{"none"} = 1;
+	    }
 
 	    push(@{$row}, $sorted_types[0], join(":", map { sprintf("%s(%d)", $_, $types{$_}) } (@sorted_types)));
 	} else {
