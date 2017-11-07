@@ -14,6 +14,7 @@ my @csv;
 my @new;
 
 use Getopt::Long;
+use Storable qw(dclone);
 
 GetOptions( 'gff=s' => \$file,
 	    'csv=s@' => \@csv,
@@ -199,42 +200,48 @@ foreach my $chr (keys %parent_child_rel)
 	}
 	foreach my $exon (@exons)
 	{
-	    my %new_entry = %{$exon};
-	    $new_entry{type} = ($reverse) ? "three_prime_UTR" : "five_prime_UTR";
-	    delete $new_entry{attributes}{Name};
-	    delete $new_entry{attributes}{ID};
+	    my $new_entry = dclone($exon);
+	    $new_entry->{type} = ($reverse) ? "three_prime_UTR" : "five_prime_UTR";
+	    delete $new_entry->{attributes}{Name};
+	    delete $new_entry->{attributes}{ID};
 
 	    if ($first_CDS->{start} >= $exon->{start} && $first_CDS->{start} <= $exon->{stop})
 	    {
-		# found a match, therefore partial UTR
-		$new_entry{stop} = $first_CDS->{start}-1;
-		push(@new_entries, \%new_entry);
+		if ($first_CDS->{start} > $exon->{start})
+		{
+		    # found a match, therefore partial UTR
+		    $new_entry->{stop} = $first_CDS->{start}-1;
+		    push(@new_entries, $new_entry);
+		}
 
 		last;
 	    } else {
 		# no match, therefore complete UTR exon
-		push(@new_entries, \%new_entry);
+		push(@new_entries, $new_entry);
 	    }
 	}
 
 	my $last_CDS = $CDS[@CDS-1];
 	foreach my $exon (reverse @exons)
 	{
-	    my %new_entry = %{$exon};
-	    $new_entry{type} = ($reverse) ? "five_prime_UTR" : "three_prime_UTR";
-	    delete $new_entry{attributes}{Name};
-	    delete $new_entry{attributes}{ID};
+	    my $new_entry = dclone($exon);
+	    $new_entry->{type} = ($reverse) ? "five_prime_UTR" : "three_prime_UTR";
+	    delete $new_entry->{attributes}{Name};
+	    delete $new_entry->{attributes}{ID};
 
 	    if ($last_CDS->{stop} >= $exon->{start} && $last_CDS->{stop} <= $exon->{stop})
 	    {
-		# found a match, therefore partial UTR
-		$new_entry{start} = $last_CDS->{stop}+1;
-		push(@new_entries, \%new_entry);
+		if ($last_CDS->{stop} < $exon->{stop})
+		{
+		    # found a match, therefore partial UTR
+		    $new_entry->{start} = $last_CDS->{stop}+1;
+		    push(@new_entries, $new_entry);
+		}
 
 		last;
 	    } else {
 		# no match, therefore complete UTR exon
-		push(@new_entries, \%new_entry);
+		push(@new_entries, $new_entry);
 	    }
 	}
 
