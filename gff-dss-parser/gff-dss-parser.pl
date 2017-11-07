@@ -261,6 +261,15 @@ foreach my $chr (keys %gff)
 }
 warn "Finished\n";
 
+# print GFF
+foreach my $chr (keys %gff)
+{
+    foreach my $entry (@{$gff{$chr}})
+    {
+	print join("\t", (map {$entry->{orig}{$_}} (qw(chromosome source type start stop score strand phase))), join(";", map { sprintf("%s=%s", $_, join(",", @{$entry->{orig}{attributes}{$_}})) } (keys %{$entry->{orig}{attributes}}))), "\n";
+    }
+}
+
 for(my $i=0; $i<@csv; $i++)
 {
     my $csv = $csv[$i];
