@@ -151,9 +151,9 @@ foreach my $chr (keys %gff)
 	    $parent_child_rel{$chr}{$parent}{parent} = $i;
 	}
 
-	if (exists $entry->{orig}{attributes}{parent})
+	if (exists $entry->{orig}{attributes}{Parent})
 	{
-	    foreach my $parent (@{$entry->{orig}{attributes}{parent}})
+	    foreach my $parent (@{$entry->{orig}{attributes}{Parent}})
 	    {
 		push(@{$parent_child_rel{$chr}{$parent}{children}}, $i);
 	    }
