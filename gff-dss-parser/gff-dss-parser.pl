@@ -168,6 +168,19 @@ foreach my $chr (keys %gff)
 
 warn "Finished\n";
 
+warn "Generating UTR annotations\n";
+
+foreach my $chr (keys %parent_child_rel)
+{
+    foreach my $parent (keys %{$parent_child_rel{$chr}})
+    {
+	# check if the group contains CDS and exon information
+	my @CDS_exons = grep { $gff{$chr}[$_]{type} eq "CDS" || $gff{$chr}[$_]{type} eq "exon" } (@{$parent_child_rel{$chr}{$parent}{children}});
+    }
+}
+
+warn "Finished\n";
+
 warn "Sorting information\n";
 
 foreach my $chr (keys %gff)
