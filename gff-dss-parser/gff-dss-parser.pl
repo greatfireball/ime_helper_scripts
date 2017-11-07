@@ -135,9 +135,30 @@ close(FH) || die "$!\n";
 
 warn "Sorting information\n";
 
+my %parent_child_rel = ();
+
 foreach my $chr (keys %gff)
 {
     @{$gff{$chr}} = map {{range => Bio::Range->new(-start => $_->{start}, -end => $_->{stop}, -strand => 0), orig => $_ }} sort {$a->{start} <=> $b->{start} || $a->{stop} <=> $b->{stop} || $a->{type} cmp $b->{type}} @{$gff{$chr}};
+
+    for(my $i=0; $i < @{$gff{$chr}}; $i++)
+    {
+	my $entry = $gff{$chr}[$i];
+
+	if (exists $entry->{orig}{attributes}{ID} && @{$entry->{orig}{attributes}{ID}}==1)
+	{
+	    my $parent = $entry->{orig}{attributes}{ID}[0];
+	    $parent_child_rel{$chr}{$parent}{parent} = $i;
+	}
+
+	if (exists $entry->{orig}{attributes}{parent})
+	{
+	    foreach my $parent (@{$entry->{orig}{attributes}{parent}})
+	    {
+		push(@{$parent_child_rel{$chr}{$parent}{children}}, $i);
+	    }
+	}
+    }
 }
 
 warn "Finished\n";
