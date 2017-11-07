@@ -134,148 +134,19 @@ while (<FH>)
 
 close(FH) || die "$!\n";
 
-warn "Generating parent-child-relationship structure\n";
-
-my %parent_child_rel = ();
-
-foreach my $chr (keys %gff)
-{
-    for(my $i=0; $i < @{$gff{$chr}}; $i++)
-    {
-	my $entry = $gff{$chr}[$i];
-
-	if (exists $entry->{attributes}{ID} && @{$entry->{attributes}{ID}}==1)
-	{
-	    my $parent = $entry->{attributes}{ID}[0];
-	    $parent_child_rel{$chr}{$parent}{parent} = $i;
-	}
-
-	if (exists $entry->{attributes}{Parent})
-	{
-	    foreach my $parent (@{$entry->{attributes}{Parent}})
-	    {
-		push(@{$parent_child_rel{$chr}{$parent}{children}}, $i);
-	    }
-	}
-    }
-
-    # deleting entries without children
-    my $chromosome_set = $parent_child_rel{$chr};
-    foreach my $entry2delete (grep {! exists $chromosome_set->{$_}{children}} (keys %{$chromosome_set}))
-    {
-	delete $chromosome_set->{$entry2delete};
-    }
-}
-
-warn "Finished\n";
-
 warn "Generating UTR annotations\n";
 
-foreach my $chr (keys %parent_child_rel)
-{
-    foreach my $parent (keys %{$parent_child_rel{$chr}})
-    {
-	# check if the group contains CDS and exon information
-	my @CDS = sort {
-	    $a->{start} <=> $b->{start} ||
-		$a->{stop} <=> $b->{stop}
-	} grep {
-	    $_->{type} eq "CDS"
-	} map {{%{$gff{$chr}[$_]}}} (@{$parent_child_rel{$chr}{$parent}{children}});
-
-	my @exons = sort {
-	    $a->{start} <=> $b->{start} ||
-		$a->{stop} <=> $b->{stop}
-	} grep { $_->{type} eq "exon" } map {{%{$gff{$chr}[$_]}}} (@{$parent_child_rel{$chr}{$parent}{children}});
-
-	next unless (@exons && @CDS);
-
-	my @new_entries = ();
-	# search for first exon containing CDS
-	my $first_CDS = $CDS[0];
-	my $reverse = 0;
-	if ($first_CDS->{strand} eq "-")
-	{
-	    $reverse = 1;
-	}
-	foreach my $exon (@exons)
-	{
-	    my $new_entry = dclone($exon);
-	    $new_entry->{type} = ($reverse) ? "three_prime_UTR" : "five_prime_UTR";
-	    delete $new_entry->{attributes}{Name};
-	    delete $new_entry->{attributes}{ID};
-
-	    if ($first_CDS->{start} >= $exon->{start} && $first_CDS->{start} <= $exon->{stop})
-	    {
-		if ($first_CDS->{start} > $exon->{start})
-		{
-		    # found a match, therefore partial UTR
-		    $new_entry->{stop} = $first_CDS->{start}-1;
-		    push(@new_entries, $new_entry);
-		}
-
-		last;
-	    } else {
-		# no match, therefore complete UTR exon
-		push(@new_entries, $new_entry);
-	    }
-	}
-
-	my $last_CDS = $CDS[@CDS-1];
-	foreach my $exon (reverse @exons)
-	{
-	    my $new_entry = dclone($exon);
-	    $new_entry->{type} = ($reverse) ? "five_prime_UTR" : "three_prime_UTR";
-	    delete $new_entry->{attributes}{Name};
-	    delete $new_entry->{attributes}{ID};
-
-	    if ($last_CDS->{stop} >= $exon->{start} && $last_CDS->{stop} <= $exon->{stop})
-	    {
-		if ($last_CDS->{stop} < $exon->{stop})
-		{
-		    # found a match, therefore partial UTR
-		    $new_entry->{start} = $last_CDS->{stop}+1;
-		    push(@new_entries, $new_entry);
-		}
-
-		last;
-	    } else {
-		# no match, therefore complete UTR exon
-		push(@new_entries, $new_entry);
-	    }
-	}
-
-	push(@{$gff{$chr}}, @new_entries);
-    }
-}
+generate_UTR_annotation(\%gff);
 
 warn "Finished\n";
 
 warn "Sorting information\n";
 
-foreach my $chr (keys %gff)
-{
-    @{$gff{$chr}} = map {
-	{
-	    range => Bio::Range->new(-start => $_->{start}, -end => $_->{stop}, -strand => 0),
-	    orig => $_
-	}
-    } sort {
-	$a->{start} <=> $b->{start} ||
-	    $a->{stop} <=> $b->{stop} ||
-	    $a->{type} cmp $b->{type}
-    } @{$gff{$chr}};
-}
+sort_gff(\%gff);
+
 warn "Finished\n";
 
-# print GFF
-foreach my $chr (keys %gff)
-{
-    foreach my $entry (@{$gff{$chr}})
-    {
-	print join("\t", (map {$entry->{orig}{$_}} (qw(chromosome source type start stop score strand phase))), join(";", map { sprintf("%s=%s", $_, join(",", @{$entry->{orig}{attributes}{$_}})) } (keys %{$entry->{orig}{attributes}}))), "\n";
-    }
-}
+print_gff(\%gff);
 
 for(my $i=0; $i<@csv; $i++)
 {
@@ -350,4 +221,162 @@ for(my $i=0; $i<@csv; $i++)
     $csv_parser->print ($fh, $col_names);
     $csv_parser->print ($fh, $_) for @rows;
     close($fh) or die "'$new': $!";
+}
+
+sub get_parent_child_relationship
+{
+    my $gff = shift;
+
+    my %relationship = ();
+
+    foreach my $chr (keys %{$gff})
+    {
+	for(my $i=0; $i < @{$gff->{$chr}}; $i++)
+	{
+	    my $entry = $gff->{$chr}[$i];
+
+	    if (exists $entry->{attributes}{ID} && @{$entry->{attributes}{ID}}==1)
+	    {
+		my $parent = $entry->{attributes}{ID}[0];
+		$relationship{$chr}{$parent}{parent} = $i;
+	    }
+
+	    if (exists $entry->{attributes}{Parent})
+	    {
+		foreach my $parent (@{$entry->{attributes}{Parent}})
+		{
+		    push(@{$relationship{$chr}{$parent}{children}}, $i);
+		}
+	    }
+	}
+
+	# deleting entries without children
+	my $chromosome_set = $relationship{$chr};
+	foreach my $entry2delete (grep {! exists $chromosome_set->{$_}{children}} (keys %{$chromosome_set}))
+	{
+	    delete $chromosome_set->{$entry2delete};
+	}
+    }
+
+    return \%relationship;
+}
+
+sub generate_UTR_annotation
+{
+    my $gff = shift;
+
+    my $relationship = get_parent_child_relationship($gff);;
+
+    foreach my $chr (keys %{$relationship})
+    {
+	foreach my $parent (keys %{$relationship->{$chr}})
+	{
+	    # check if the group contains CDS and exon information
+	    my @CDS = sort {
+		$a->{start} <=> $b->{start} ||
+		    $a->{stop} <=> $b->{stop}
+	    } grep {
+		$_->{type} eq "CDS"
+	    } map {{%{$gff->{$chr}[$_]}}} (@{$relationship->{$chr}{$parent}{children}});
+
+	    my @exons = sort {
+		$a->{start} <=> $b->{start} ||
+		    $a->{stop} <=> $b->{stop}
+	    } grep { $_->{type} eq "exon" } map {{%{$gff->{$chr}[$_]}}} (@{$relationship->{$chr}{$parent}{children}});
+
+	    next unless (@exons && @CDS);
+
+	    my @new_entries = ();
+	    # search for first exon containing CDS
+	    my $first_CDS = $CDS[0];
+	    my $reverse = 0;
+	    if ($first_CDS->{strand} eq "-")
+	    {
+		$reverse = 1;
+	    }
+	    foreach my $exon (@exons)
+	    {
+		my $new_entry = dclone($exon);
+		$new_entry->{type} = ($reverse) ? "three_prime_UTR" : "five_prime_UTR";
+		delete $new_entry->{attributes}{Name};
+		delete $new_entry->{attributes}{ID};
+
+		if ($first_CDS->{start} >= $exon->{start} && $first_CDS->{start} <= $exon->{stop})
+		{
+		    if ($first_CDS->{start} > $exon->{start})
+		    {
+			# found a match, therefore partial UTR
+			$new_entry->{stop} = $first_CDS->{start}-1;
+			push(@new_entries, $new_entry);
+		    }
+
+		    last;
+		} else {
+		    # no match, therefore complete UTR exon
+		    push(@new_entries, $new_entry);
+		}
+	    }
+
+	    my $last_CDS = $CDS[@CDS-1];
+	    foreach my $exon (reverse @exons)
+	    {
+		my $new_entry = dclone($exon);
+		$new_entry->{type} = ($reverse) ? "five_prime_UTR" : "three_prime_UTR";
+		delete $new_entry->{attributes}{Name};
+		delete $new_entry->{attributes}{ID};
+
+		if ($last_CDS->{stop} >= $exon->{start} && $last_CDS->{stop} <= $exon->{stop})
+		{
+		    if ($last_CDS->{stop} < $exon->{stop})
+		    {
+			# found a match, therefore partial UTR
+			$new_entry->{start} = $last_CDS->{stop}+1;
+			push(@new_entries, $new_entry);
+		    }
+
+		    last;
+		} else {
+		    # no match, therefore complete UTR exon
+		    push(@new_entries, $new_entry);
+		}
+	    }
+
+	    push(@{$gff->{$chr}}, @new_entries);
+	}
+    }
+    return 1;
+}
+
+sub sort_gff
+{
+    my $gff = shift;
+
+    my $parent_child_rel = get_parent_child_relationship($gff);
+
+    foreach my $chr (keys %{$gff})
+    {
+	@{$gff->{$chr}} = map {
+	    {
+		range => Bio::Range->new(-start => $_->{start}, -end => $_->{stop}, -strand => 0),
+		orig => $_
+	    }
+	} sort {
+	    $sort_types{$a->{type}} <=> $sort_types{$b->{type}} ||
+	$a->{start} <=> $b->{start} ||
+	$a->{stop} <=> $b->{stop}
+	} @{$gff->{$chr}};
+    }
+}
+
+sub print_gff
+{
+    my $gff = shift;
+
+    foreach my $chr (keys %{$gff})
+    {
+	foreach my $entry (@{$gff->{$chr}})
+	{
+	    print join("\t", (map {$entry->{orig}{$_}} (qw(chromosome source type start stop score strand phase))), join(";", map { sprintf("%s=%s", $_, join(",", @{$entry->{orig}{attributes}{$_}})) } (keys %{$entry->{orig}{attributes}}))), "\n";
+	}
+    }
 }
