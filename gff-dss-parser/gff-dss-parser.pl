@@ -159,6 +159,13 @@ foreach my $chr (keys %gff)
 	    }
 	}
     }
+
+    # deleting entries without children
+    my $chromosome_set = $parent_child_rel{$chr};
+    foreach my $entry2delete (grep {! exists $chromosome_set->{$_}{children}} (keys %{$chromosome_set}))
+    {
+	delete $chromosome_set->{$entry2delete};
+    }
 }
 
 warn "Finished\n";
