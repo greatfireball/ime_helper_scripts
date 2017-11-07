@@ -67,14 +67,17 @@ my %sort_types = (
     CDS => 50,
     downstream => 5,
     exon => 40,
-    five_prime_UTR => 30,
+    five_prime_UTR => 45,
     gene => 10,
     'gene-intron' => 15,
     intergenic => 2,
     intron => 25,
     mRNA => 20,
-    three_prime_UTR => 30,
-    upstream => 5
+    three_prime_UTR => 45,
+    upstream => 5,
+    non_canonical_five_prime_splice_site => 1,
+    non_canonical_three_prime_splice_site => 1,
+    transcript => 1
     );
 
 sub sort_gff_types
@@ -83,6 +86,7 @@ sub sort_gff_types
     $a_cleaned =~ s/[.+-]$//;
     my $b_cleaned = $b;
     $b_cleaned =~ s/[.+-]$//;
+
     $sort_types{$b_cleaned} <=> $sort_types{$a_cleaned} || $a cmp $b;
 }
 
