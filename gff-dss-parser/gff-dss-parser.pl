@@ -144,6 +144,12 @@ generate_UTR_annotation(\%gff);
 
 warn "Finished\n";
 
+warn "Generating intron annotations\n";
+
+generate_intron_annotation(\%gff);
+
+warn "Finished\n";
+
 warn "Sorting information\n";
 
 sort_gff(\%gff);
@@ -346,6 +352,46 @@ sub generate_UTR_annotation
 	    }
 
 	    push(@{$gff->{$chr}}, @new_entries);
+	}
+    }
+    return 1;
+}
+
+sub generate_intron_annotation
+{
+    my $gff = shift;
+
+    my $relationship = get_parent_child_relationship($gff);;
+
+    foreach my $chr (keys %{$relationship})
+    {
+	foreach my $parent (keys %{$relationship->{$chr}})
+	{
+	    # check if the group contains exon information
+	    my @exons = sort {
+		$a->{start} <=> $b->{start} ||
+		    $a->{stop} <=> $b->{stop}
+	    } grep { $_->{type} eq "exon" } map {{%{$gff->{$chr}[$_]}}} (@{$relationship->{$chr}{$parent}{children}});
+
+	    next unless (@exons>1);
+
+	    my @introns = ();
+
+	    # search for first exon containing CDS
+	    for(my $i=0; $i<@exons-2; $i++)
+	    {
+		my $intron = dclone($exons[$i]);
+		$intron->{type} = "intron";
+		delete $intron->{attributes}{Name};
+		delete $intron->{attributes}{ID};
+
+		$intron->{start}++;
+		$intron->{stop} = $exons[$i+1]-1;
+
+		push(@introns, $intron);
+	    }
+
+	    push(@{$gff->{$chr}}, @introns);
 	}
     }
     return 1;
