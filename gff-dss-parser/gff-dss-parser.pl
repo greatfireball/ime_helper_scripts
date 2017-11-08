@@ -262,12 +262,12 @@ sub get_parent_child_relationship
 	    }
 	}
 
-	# deleting entries without children
-	my $chromosome_set = $relationship{$chr};
-	foreach my $entry2delete (grep {! exists $chromosome_set->{$_}{children}} (keys %{$chromosome_set}))
-	{
-	    delete $chromosome_set->{$entry2delete};
-	}
+	# # deleting entries without children
+	# my $chromosome_set = $relationship{$chr};
+	# foreach my $entry2delete (grep {! exists $chromosome_set->{$_}{children}} (keys %{$chromosome_set}))
+	# {
+	#     delete $chromosome_set->{$entry2delete};
+	# }
     }
 
     return \%relationship;
