@@ -427,7 +427,7 @@ sub print_gff
 {
     my $gff = shift;
 
-    foreach my $chr (keys %{$gff})
+    foreach my $chr (sort keys %{$gff})
     {
 	foreach my $entry (@{$gff->{$chr}})
 	{
