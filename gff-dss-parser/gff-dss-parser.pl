@@ -431,7 +431,7 @@ sub print_gff
     {
 	foreach my $entry (@{$gff->{$chr}})
 	{
-	    print join("\t", (map {$entry->{orig}{$_}} (qw(chromosome source type start stop score strand phase))), join(";", map { sprintf("%s=%s", $_, join(",", @{$entry->{orig}{attributes}{$_}})) } (keys %{$entry->{orig}{attributes}}))), "\n";
+	    print join("\t", (map {$entry->{orig}{$_}} (qw(chromosome source type start stop score strand phase))), join(";", map { sprintf("%s=%s", $_, join(",", @{$entry->{orig}{attributes}{$_}})) } (sort keys %{$entry->{orig}{attributes}}))), "\n";
 	}
     }
 }
