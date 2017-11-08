@@ -24,6 +24,8 @@ GetOptions( 'gff=s' => \$file,
 @csv = split(",", join(",", @csv));
 @new = split(",", join(",", @new));
 
+my $toolname = "reannotator";
+
 unless ($file && -e $file)
 {
     die "Missing input gff. Use --gff parameter!\n";
@@ -308,6 +310,7 @@ sub generate_UTR_annotation
 	    {
 		my $new_entry = dclone($exon);
 		$new_entry->{type} = ($reverse) ? "three_prime_UTR" : "five_prime_UTR";
+		$new_entry->{source} = $toolname;
 		delete $new_entry->{attributes}{Name};
 		delete $new_entry->{attributes}{ID};
 
@@ -332,6 +335,7 @@ sub generate_UTR_annotation
 	    {
 		my $new_entry = dclone($exon);
 		$new_entry->{type} = ($reverse) ? "five_prime_UTR" : "three_prime_UTR";
+		$new_entry->{source} = $toolname;
 		delete $new_entry->{attributes}{Name};
 		delete $new_entry->{attributes}{ID};
 
@@ -382,6 +386,7 @@ sub generate_intron_annotation
 	    {
 		my $intron = dclone($exons[$i]);
 		$intron->{type} = "intron";
+		$intron->{source} = $toolname;
 		delete $intron->{attributes}{Name};
 		delete $intron->{attributes}{ID};
 
