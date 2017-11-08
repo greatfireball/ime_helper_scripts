@@ -378,7 +378,7 @@ sub generate_intron_annotation
 	    my @introns = ();
 
 	    # search for first exon containing CDS
-	    for(my $i=0; $i<@exons-2; $i++)
+	    for(my $i=0; $i<@exons-1; $i++)
 	    {
 		my $intron = dclone($exons[$i]);
 		$intron->{type} = "intron";
@@ -386,7 +386,7 @@ sub generate_intron_annotation
 		delete $intron->{attributes}{ID};
 
 		$intron->{start}++;
-		$intron->{stop} = $exons[$i+1]-1;
+		$intron->{stop} = $exons[$i+1]{start}-1;
 
 		push(@introns, $intron);
 	    }
