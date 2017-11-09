@@ -13,12 +13,19 @@ my $file;
 my @csv;
 my @new;
 
+my $gff_add_introns = 0;
+my $gff_add_utrs    = 0;
+my $gff_print       = 0;
+
 use Getopt::Long;
 use Storable qw(dclone);
 
 GetOptions( 'gff=s' => \$file,
 	    'csv=s@' => \@csv,
-	    'out=s@' => \@new
+	    'out=s@' => \@new,
+	    'add_intron' => \$gff_add_introns,
+	    'add_utr'    => \$gff_add_utrs,
+	    'gffout'      => \$gff_print
     ) || die;
 
 @csv = split(",", join(",", @csv));
@@ -140,17 +147,27 @@ while (<FH>)
 
 close(FH) || die "$!\n";
 
-warn "Generating UTR annotations\n";
+if ($gff_add_utrs)
+{
+    warn "Generating UTR annotations\n";
 
-generate_UTR_annotation(\%gff);
+    generate_UTR_annotation(\%gff);
 
-warn "Finished\n";
+    warn "Finished\n";
+} else {
+    warn "UTR annotation is not requested via --add_utr and will be skipped\n";
+}
 
-warn "Generating intron annotations\n";
+if ($gff_add_introns)
+{
+    warn "Generating intron annotations\n";
 
-generate_intron_annotation(\%gff);
+    generate_intron_annotation(\%gff);
 
-warn "Finished\n";
+    warn "Finished\n";
+} else {
+    warn "Intron annotation is not requested via --add_intron and will be skipped\n";
+}
 
 warn "Sorting information\n";
 
@@ -158,7 +175,12 @@ sort_gff(\%gff);
 
 warn "Finished\n";
 
-print_gff(\%gff);
+if ($gff_print)
+{
+    print_gff(\%gff);
+} else {
+    warn "Printing the GFF is not requested via --gffout and will be skipped\n";
+}
 
 for(my $i=0; $i<@csv; $i++)
 {
