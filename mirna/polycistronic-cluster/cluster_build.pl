@@ -53,7 +53,7 @@ information:
 
 =item strand [mandatory]
 
-=item miRNA [mandatory]
+=item miRNA_precursor_ID [mandatory]
 
 =back
 
@@ -75,7 +75,9 @@ columns:
 
 =back
 
-The columns are comma separated.
+The columns are comma separated. position_entry_id will be returned
+due to a single precursor might have multiple copies inside the
+genome.
 
 =head1 AUTHOR
 
