@@ -29,3 +29,12 @@ foreach my $seqfile (@seqfiles)
 	push(@{$mapping->{$seq->seq}}, $seq->id);
     }
 }
+
+my @seqs = sort { length($b) <=> length($a) || $a cmp $b } (keys (%{$mapping}));
+for(my $i=0; $i<@seqs; $i++)
+{
+    foreach my $id (sort @{$mapping->{$seqs[$i]}})
+    {
+	printf "Group_%06d\t%s\n", $i, $id;
+    }
+}
