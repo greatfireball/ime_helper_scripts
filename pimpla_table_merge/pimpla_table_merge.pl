@@ -33,6 +33,8 @@ my $quantification_file = "";
 my $hmmer_file          = "";
 my $jackhmmer_file      = "";
 my @manual_annotations  = ();
+my $interpro_out        = "interpro.tsv";
+my $table_out           = "output.tsv";
 
 GetOptions(
     "mascot=s"         => \$mascot_id_file,
@@ -42,7 +44,9 @@ GetOptions(
     "quantification=s" => \$quantification_file,
     "hmmer=s"          => \$hmmer_file,
     "jackhmmer=s"      => \$jackhmmer_file,
-    "manual=s@"        => \@manual_annotations
+    "manual=s@"        => \@manual_annotations,
+    "out=s"            => \$table_out,
+    "out_interpro=s"   => \$interpro_out
     ) || die;
 
 @manual_annotations = split(/,/, join(",", @manual_annotations));
@@ -339,3 +343,62 @@ foreach my $id (keys %mascot_ids)
 my $num_ncbi = @ids_with_ncbi+0;
 my $percent_ncbi = $num_ncbi/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with ncbi information (%.1f %%)", $num_ncbi, $percent_ncbi));
+
+open(FH, ">", $table_out) || die "Unable to open output table file '$table_out': $!\n";
+open(INTERPRO, ">", $interpro_out) || die "Unable to open interpro output table file '$interpro_out': $!\n";
+
+print FH join("\t",
+	      "transcript",
+	      "vg_cov",
+	      "vg_tpm",
+	      "bf_cov",
+	      "bf_tpm",
+	      "bm_cov",
+	      "bm_tpm",
+	      "Venom Related Protein Description",
+	      "ToxProt_Subject",
+	      "ToxProt_Description",
+	      "ToxProt_Bitscore",
+	      "NCBI_Subject",
+	      "NCBI_Description",
+	      "NCBI_Bitscore",
+	      "InterproScan result available",
+	      "HMMER subject",
+	      "HMMER bitscore",
+	      "JACKHMMER subject",
+	      "JACKHMMER bitscore"
+    ), "\n";
+
+foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
+{
+    my $interpro_present = "NO";
+    if ( @{$mascot_ids{$id}{interpro}} > 0 )
+    {
+	$interpro_present = sprintf("YES (%d result lines)", int(@{$mascot_ids{$id}{interpro}}));
+	foreach (@{$mascot_ids{$id}{interpro}})
+	{
+	    $_ =~ s/^\S+_(\d+)(\.p\d+)/pitu_v1_$1$2/;
+	    print INTERPRO $_;
+	}
+    }
+
+    print FH join("\t",
+		  "pitu_v1_".$id,
+		  $mascot_ids{$id}{quantification}{'./stringtie/3_8_dta.gtf_cov'},
+		  $mascot_ids{$id}{quantification}{'./stringtie/3_8_dta.gtf_tpm'},
+		  $mascot_ids{$id}{quantification}{'./stringtie/6_dta.gtf_cov'},
+		  $mascot_ids{$id}{quantification}{'./stringtie/6_dta.gtf_tpm'},
+		  $mascot_ids{$id}{quantification}{'./stringtie/7_dta.gtf_cov'},
+		  $mascot_ids{$id}{quantification}{'./stringtie/7_dta.gtf_tpm'},
+		  join(";", @{$mascot_ids{$id}{manual}}),
+		  ( map { exists $mascot_ids{$id}{toxprot}{$_} ? $mascot_ids{$id}{toxprot}{$_} : "" } ("subject", "description", "bitscore")),
+		  ( map { exists $mascot_ids{$id}{ncbi}{$_} ? $mascot_ids{$id}{ncbi}{$_} : "" } ("subject", "description", "bitscore")),
+		  $interpro_present,
+		  ((exists $mascot_ids{$id}{hmmer}{name}) ? $mascot_ids{$id}{hmmer}{name} : ""),
+		  ((exists $mascot_ids{$id}{hmmer}{bitscore}) ? $mascot_ids{$id}{hmmer}{bitscore} : ""),
+		  ((exists $mascot_ids{$id}{jackhmmer}{name}) ? $mascot_ids{$id}{jackhmmer}{name} : ""),
+		  ((exists $mascot_ids{$id}{jackhmmer}{bitscore}) ? $mascot_ids{$id}{jackhmmer}{bitscore} : ""),
+	), "\n";
+}
+close(INTERPRO) || die "Unable to close interpro output table file '$interpro_out': $!\n";
+close(FH) || die "Unable to close output table file '$table_out': $!\n";
