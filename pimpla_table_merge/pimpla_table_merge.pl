@@ -28,11 +28,13 @@ my $log = Log::Log4perl::get_logger("Foo::Bar");
 my $mascot_id_file = "";
 my $interproscan_file = "";
 my $toxprot_file      = "";
+my $ncbi_file         = "";
 
 GetOptions(
     "mascot=s"      => \$mascot_id_file,
     "interpro=s"    => \$interproscan_file,
-    "toxprot=s"     => \$toxprot_file
+    "toxprot=s"     => \$toxprot_file,
+    "ncbi=s"        => \$ncbi_file
     ) || die;
 
 my %mascot_ids = ();
@@ -129,3 +131,48 @@ foreach my $id (keys %mascot_ids)
 my $num_toxprot = @ids_with_toxprot+0;
 my $percent_toxprot = $num_toxprot/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with toxprot information (%.1f %%)", $num_toxprot, $percent_toxprot));
+
+open(FH, "<", $ncbi_file) || die "Unable to open ncbi file '$ncbi_file': $!\n";
+my @fieldnames = ();
+while(<FH>)
+{
+    if (/^#/)
+    {
+	chomp;
+	$_ =~ s/^#//;
+	@fieldnames = split(/\t/, $_);
+	next;
+    }
+    chomp;
+    my @fields = split(/\t/, $_);
+    my %data = ();
+    @data{@fieldnames} = @fields;
+
+    if ($data{query} =~ /^\S+_(\d+)$/)
+    {
+	my ($id) = ($1);
+	if (exists $mascot_ids{$id})
+	{
+	    # update if it is a better hit or no toxprot hit was stored
+	    if ( (! exists $mascot_ids{$id}{ncbi}) || ($mascot_ids{$id}{ncbi}{bitscore} < $data{bitscore}))
+	    {
+		$mascot_ids{$id}{ncbi} = \%data;
+	    }
+	}
+    }
+}
+close(FH) || die "Unable to close ncbi file '$ncbi_file': $!\n";
+
+my @ids_with_ncbi = ();
+foreach my $id (keys %mascot_ids)
+{
+    if (exists $mascot_ids{$id}{ncbi})
+    {
+	push(@ids_with_ncbi, $id);
+    } else {
+	$mascot_ids{$id}{ncbi} = {};
+    }
+}
+my $num_ncbi = @ids_with_ncbi+0;
+my $percent_ncbi = $num_ncbi/((keys %mascot_ids)+0)*100;
+$log->info(sprintf("Found %d entries with ncbi information (%.1f %%)", $num_ncbi, $percent_ncbi));
