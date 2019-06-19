@@ -133,7 +133,6 @@ my $percent_toxprot = $num_toxprot/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with toxprot information (%.1f %%)", $num_toxprot, $percent_toxprot));
 
 open(FH, "<", $ncbi_file) || die "Unable to open ncbi file '$ncbi_file': $!\n";
-my @fieldnames = ();
 while(<FH>)
 {
     if (/^#/)
