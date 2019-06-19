@@ -25,16 +25,18 @@ my $conf = q(
 Log::Log4perl::init( \$conf );
 my $log = Log::Log4perl::get_logger("Foo::Bar");
 
-my $mascot_id_file = "";
-my $interproscan_file = "";
-my $toxprot_file      = "";
-my $ncbi_file         = "";
+my $mascot_id_file      = "";
+my $interproscan_file   = "";
+my $toxprot_file        = "";
+my $ncbi_file           = "";
+my $quantification_file = "";
 
 GetOptions(
-    "mascot=s"      => \$mascot_id_file,
-    "interpro=s"    => \$interproscan_file,
-    "toxprot=s"     => \$toxprot_file,
-    "ncbi=s"        => \$ncbi_file
+    "mascot=s"         => \$mascot_id_file,
+    "interpro=s"       => \$interproscan_file,
+    "toxprot=s"        => \$toxprot_file,
+    "ncbi=s"           => \$ncbi_file,
+    "quantification=s" => \$quantification_file
     ) || die;
 
 my %mascot_ids = ();
@@ -84,8 +86,49 @@ my $num_interpros = @ids_with_interpro+0;
 my $percent_interpro = $num_interpros/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with interproscan information (%.1f %%)", $num_interpros, $percent_interpro));
 
-open(FH, "<", $toxprot_file) || die "Unable to open toxprot file '$toxprot_file': $!\n";
+open(FH, "<", $quantification_file) || die "Unable to open quantification file '$quantification_file': $!\n";
 my @fieldnames = ();
+while(<FH>)
+{
+    if (/^#/)
+    {
+	chomp;
+	$_ =~ s/^#//;
+	@fieldnames = split(/\t/, $_);
+	next;
+    }
+    chomp;
+    my @fields = split(/\t/, $_);
+    my %data = ();
+    @data{@fieldnames} = @fields;
+
+    if ($data{transcript} =~ /^\S+_(\d+)$/)
+    {
+	my ($id) = ($1);
+	if (exists $mascot_ids{$id})
+	{
+	    die "Double quantification result for $id\n" if (exists $mascot_ids{$id}{quantification});
+	    $mascot_ids{$id}{quantification} = \%data;
+	}
+    }
+}
+close(FH) || die "Unable to close quantification file '$quantification_file': $!\n";
+
+my @ids_with_quantification = ();
+foreach my $id (keys %mascot_ids)
+{
+    if (exists $mascot_ids{$id}{quantification})
+    {
+	push(@ids_with_quantification, $id);
+    } else {
+	$mascot_ids{$id}{quantification} = {};
+    }
+}
+my $num_quantification = @ids_with_quantification+0;
+my $percent_quantification = $num_quantification/((keys %mascot_ids)+0)*100;
+$log->info(sprintf("Found %d entries with quantification information (%.1f %%)", $num_quantification, $percent_quantification));
+
+open(FH, "<", $toxprot_file) || die "Unable to open toxprot file '$toxprot_file': $!\n";
 while(<FH>)
 {
     if (/^#/)
