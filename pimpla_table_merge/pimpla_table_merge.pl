@@ -32,6 +32,7 @@ my $ncbi_file           = "";
 my $quantification_file = "";
 my $hmmer_file          = "";
 my $jackhmmer_file      = "";
+my @manual_annotations  = ();
 
 GetOptions(
     "mascot=s"         => \$mascot_id_file,
@@ -40,8 +41,11 @@ GetOptions(
     "ncbi=s"           => \$ncbi_file,
     "quantification=s" => \$quantification_file,
     "hmmer=s"          => \$hmmer_file,
-    "jackhmmer=s"      => \$jackhmmer_file
+    "jackhmmer=s"      => \$jackhmmer_file,
+    "manual=s@"        => \@manual_annotations
     ) || die;
+
+@manual_annotations = split(/,/, join(",", @manual_annotations));
 
 my %mascot_ids = ();
 
@@ -61,6 +65,37 @@ while(<FH>)
 close(FH) || die "Unable to close Mascot ID File '$mascot_id_file': $!\n";
 
 $log->info(sprintf("Found %d ids from mascot run", (keys %mascot_ids)+0));
+
+for my $manual (@manual_annotations)
+{
+    open(FH, "<", $manual) || die "Unable to open manual annotation file '$manual': $!\n";
+    while(<FH>)
+    {
+	if ($_ =~ /^\S+_(\d+)\t+(.+)/)
+	{
+	    my ($id, $annotation) = ($1, $2);
+	    if (exists $mascot_ids{$id})
+	    {
+		push(@{$mascot_ids{$id}{manual}}, $annotation)
+	    }
+	}
+    }
+    close(FH) || die "Unable to close manual annotation file '$manual': $!\n";
+
+    my @ids_with_manual = ();
+    foreach my $id (keys %mascot_ids)
+    {
+	if (exists $mascot_ids{$id}{manual})
+	{
+	    push(@ids_with_manual, $id);
+	} else {
+	    $mascot_ids{$id}{manual} = [];
+	}
+    }
+    my $num_manuals = @ids_with_manual+0;
+    my $percent_manual = $num_manuals/((keys %mascot_ids)+0)*100;
+    $log->info(sprintf("Found %d entries with manual annoation from file '%s' (%.1f %%)", $num_manuals, $manual, $percent_manual));
+}
 
 open(FH, "<", $interproscan_file) || die "Unable to open Interproscan file '$interproscan_file': $!\n";
 while(<FH>)
