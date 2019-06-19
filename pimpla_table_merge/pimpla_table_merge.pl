@@ -30,13 +30,17 @@ my $interproscan_file   = "";
 my $toxprot_file        = "";
 my $ncbi_file           = "";
 my $quantification_file = "";
+my $hmmer_file          = "";
+my $jackhmmer_file      = "";
 
 GetOptions(
     "mascot=s"         => \$mascot_id_file,
     "interpro=s"       => \$interproscan_file,
     "toxprot=s"        => \$toxprot_file,
     "ncbi=s"           => \$ncbi_file,
-    "quantification=s" => \$quantification_file
+    "quantification=s" => \$quantification_file,
+    "hmmer=s"          => \$hmmer_file,
+    "jackhmmer=s"      => \$jackhmmer_file
     ) || die;
 
 my %mascot_ids = ();
@@ -85,6 +89,88 @@ foreach my $id (keys %mascot_ids)
 my $num_interpros = @ids_with_interpro+0;
 my $percent_interpro = $num_interpros/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with interproscan information (%.1f %%)", $num_interpros, $percent_interpro));
+
+open(FH, "<", $hmmer_file) || die "Unable to open hmmer file '$hmmer_file': $!\n";
+while(<FH>)
+{
+    next if (/^#/);
+
+    chomp;
+    my @fields = split(/\s+/, $_);
+
+    if ($fields[0] =~ /^\S*?(\d+)\.(p\d+)/)
+    {
+	my ($id) = ($1);
+	if (exists $mascot_ids{$id})
+	{
+	    my $bitscore = $fields[5];
+	    my $name     = $fields[2];
+
+	    next if ($bitscore < 15);
+
+	    if ( (! exists $mascot_ids{$id}{hmmer}) || $mascot_ids{$id}{hmmer}{bitscore} < $bitscore)
+	    {
+		$mascot_ids{$id}{hmmer}= { bitscore => $bitscore, hmmerhit => $name };
+	    }
+	}
+    }
+}
+close(FH) || die "Unable to close hmmer file '$hmmer_file': $!\n";
+
+my @ids_with_hmmer = ();
+foreach my $id (keys %mascot_ids)
+{
+    if (exists $mascot_ids{$id}{hmmer})
+    {
+	push(@ids_with_hmmer, $id);
+    } else {
+	$mascot_ids{$id}{hmmer} = {};
+    }
+}
+my $num_hmmer = @ids_with_hmmer+0;
+my $percent_hmmer = $num_hmmer/((keys %mascot_ids)+0)*100;
+$log->info(sprintf("Found %d entries with hmmer information (%.1f %%)", $num_hmmer, $percent_hmmer));
+
+open(FH, "<", $jackhmmer_file) || die "Unable to open jackhmmer file '$jackhmmer_file': $!\n";
+while(<FH>)
+{
+    next if (/^#/);
+
+    chomp;
+    my @fields = split(/\s+/, $_);
+
+    if ($fields[0] =~ /^\S*?(\d+)\.(p\d+)/)
+    {
+	my ($id) = ($1);
+	if (exists $mascot_ids{$id})
+	{
+	    my $bitscore = $fields[5];
+	    my $name     = $fields[2];
+
+	    next if ($bitscore < 15);
+
+	    if ( (! exists $mascot_ids{$id}{jackhmmer}) || $mascot_ids{$id}{jackhmmer}{bitscore} < $bitscore)
+	    {
+		$mascot_ids{$id}{jackhmmer}= { bitscore => $bitscore, jackhmmerhit => $name };
+	    }
+	}
+    }
+}
+close(FH) || die "Unable to close jackhmmer file '$jackhmmer_file': $!\n";
+
+my @ids_with_jackhmmer = ();
+foreach my $id (keys %mascot_ids)
+{
+    if (exists $mascot_ids{$id}{jackhmmer})
+    {
+	push(@ids_with_jackhmmer, $id);
+    } else {
+	$mascot_ids{$id}{jackhmmer} = {};
+    }
+}
+my $num_jackhmmer = @ids_with_jackhmmer+0;
+my $percent_jackhmmer = $num_jackhmmer/((keys %mascot_ids)+0)*100;
+$log->info(sprintf("Found %d entries with jackhmmer information (%.1f %%)", $num_jackhmmer, $percent_jackhmmer));
 
 open(FH, "<", $quantification_file) || die "Unable to open quantification file '$quantification_file': $!\n";
 my @fieldnames = ();
