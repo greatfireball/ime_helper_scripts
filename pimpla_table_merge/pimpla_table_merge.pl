@@ -394,9 +394,9 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 		  ( map { exists $mascot_ids{$id}{toxprot}{$_} ? $mascot_ids{$id}{toxprot}{$_} : "" } ("subject", "description", "bitscore")),
 		  ( map { exists $mascot_ids{$id}{ncbi}{$_} ? $mascot_ids{$id}{ncbi}{$_} : "" } ("subject", "description", "bitscore")),
 		  $interpro_present,
-		  ((exists $mascot_ids{$id}{hmmer}{name}) ? $mascot_ids{$id}{hmmer}{name} : ""),
+		  ((exists $mascot_ids{$id}{hmmer}{hmmerhit}) ? $mascot_ids{$id}{hmmer}{hmmerhit} : ""),
 		  ((exists $mascot_ids{$id}{hmmer}{bitscore}) ? $mascot_ids{$id}{hmmer}{bitscore} : ""),
-		  ((exists $mascot_ids{$id}{jackhmmer}{name}) ? $mascot_ids{$id}{jackhmmer}{name} : ""),
+		  ((exists $mascot_ids{$id}{jackhmmer}{jackhmmerhit}) ? $mascot_ids{$id}{jackhmmer}{jackhmmerhit} : ""),
 		  ((exists $mascot_ids{$id}{jackhmmer}{bitscore}) ? $mascot_ids{$id}{jackhmmer}{bitscore} : ""),
 	), "\n";
 }
