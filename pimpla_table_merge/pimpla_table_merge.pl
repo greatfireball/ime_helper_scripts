@@ -21,6 +21,8 @@ my $conf = q(
   log4perl.appender.Screen.layout = Log::Log4perl::Layout::SimpleLayout
 );
 
+use version 0.77; our $VERSION = version->declare('v1.1.0');
+
 # ... passed as a reference to init()
 Log::Log4perl::init( \$conf );
 my $log = Log::Log4perl::get_logger("Foo::Bar");
@@ -32,6 +34,7 @@ my $ncbi_file           = "";
 my $quantification_file = "";
 my $hmmer_file          = "";
 my $jackhmmer_file      = "";
+my $deseq_normalized    = "";
 my @manual_annotations  = ();
 my $interpro_out        = "interpro.tsv";
 my $table_out           = "output.tsv";
@@ -44,6 +47,7 @@ GetOptions(
     "quantification=s" => \$quantification_file,
     "hmmer=s"          => \$hmmer_file,
     "jackhmmer=s"      => \$jackhmmer_file,
+    "deseqnormal=s"    => \$deseq_normalized,
     "manual=s@"        => \@manual_annotations,
     "out=s"            => \$table_out,
     "out_interpro=s"   => \$interpro_out
@@ -344,6 +348,53 @@ my $num_ncbi = @ids_with_ncbi+0;
 my $percent_ncbi = $num_ncbi/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with ncbi information (%.1f %%)", $num_ncbi, $percent_ncbi));
 
+@fieldnames = ();
+open(FH, "<", $deseq_normalized) || die "Unable to open DESeq normalized file '$deseq_normalized': $!\n";
+while(<FH>)
+{
+    if ($. == 1)
+    {
+	chomp;
+	@fieldnames = split(/\t/, $_);
+	# add an ID field
+	unshift(@fieldnames, "id");
+	next;
+    }
+    chomp;
+    my @fields = split(/\t/, $_);
+    my %data = ();
+    @data{@fieldnames} = @fields;
+
+    if ($data{id} =~ /^\S+_(\d+)$/)
+    {
+	my ($id) = ($1);
+	if (exists $mascot_ids{$id})
+	{
+	    $mascot_ids{$id}{deseqnormalized} = \%data;
+	}
+    }
+}
+close(FH) || die "Unable to close DESeq normalized file '$deseq_normalized': $!\n";
+
+my @ids_with_normalized_counts = ();
+foreach my $id (keys %mascot_ids)
+{
+    if (exists $mascot_ids{$id}{deseqnormalized})
+    {
+	push(@ids_with_normalized_counts, $id);
+    } else {
+	$mascot_ids{$id}{deseqnormalized} = {
+	    id         => $id,
+	    venomgland => "-",
+	    femalebody => "-",
+	    malebody   => "-"
+	};
+    }
+}
+my $num_deseqnormalized = @ids_with_normalized_counts+0;
+my $percent_deseqnormalized = $num_deseqnormalized/((keys %mascot_ids)+0)*100;
+$log->info(sprintf("Found %d entries with DESeq normalized information (%.1f %%)", $num_deseqnormalized, $percent_deseqnormalized));
+
 open(FH, ">", $table_out) || die "Unable to open output table file '$table_out': $!\n";
 open(INTERPRO, ">", $interpro_out) || die "Unable to open interpro output table file '$interpro_out': $!\n";
 
@@ -355,6 +406,9 @@ print FH join("\t",
 	      "bf_tpm",
 	      "bm_cov",
 	      "bm_tpm",
+	      "vg_DESeq_normalized",
+	      "bf_DESeq_normalized",
+	      "bm_DESeq_normalized",
 	      "Venom Related Protein Description",
 	      "ToxProt_Subject",
 	      "ToxProt_Description",
@@ -390,6 +444,9 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 		  $mascot_ids{$id}{quantification}{'./stringtie/6_dta.gtf_tpm'},
 		  $mascot_ids{$id}{quantification}{'./stringtie/7_dta.gtf_cov'},
 		  $mascot_ids{$id}{quantification}{'./stringtie/7_dta.gtf_tpm'},
+		  $mascot_ids{$id}{deseqnormalized}{venomgland},
+		  $mascot_ids{$id}{deseqnormalized}{femalebody},
+		  $mascot_ids{$id}{deseqnormalized}{malebody},
 		  join(";", @{$mascot_ids{$id}{manual}}),
 		  ( map { exists $mascot_ids{$id}{toxprot}{$_} ? $mascot_ids{$id}{toxprot}{$_} : "" } ("subject", "description", "bitscore")),
 		  ( map { exists $mascot_ids{$id}{ncbi}{$_} ? $mascot_ids{$id}{ncbi}{$_} : "" } ("subject", "description", "bitscore")),
