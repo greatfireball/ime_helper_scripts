@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use Digest::MD5;
+
 use Getopt::Long;
 
 use Log::Log4perl;
@@ -60,9 +62,11 @@ GetOptions(
 
 my %mascot_ids = ();
 
+my $ctx = Digest::MD5->new;
 open(FH, "<", $mascot_id_file) || die "Unable to open Mascot ID File '$mascot_id_file': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
     chomp;
     if ($_ =~ /^\S*?(\d+)\.(p\d+)/)
     {
@@ -75,13 +79,15 @@ while(<FH>)
 }
 close(FH) || die "Unable to close Mascot ID File '$mascot_id_file': $!\n";
 
-$log->info(sprintf("Found %d ids from mascot run", (keys %mascot_ids)+0));
+$log->info(sprintf("Found %d ids from mascot run (MD5-Input: %s)", (keys %mascot_ids)+0, $ctx->hexdigest));
 
 for my $manual (@manual_annotations)
 {
+    $ctx = Digest::MD5->new;
     open(FH, "<", $manual) || die "Unable to open manual annotation file '$manual': $!\n";
     while(<FH>)
     {
+	$ctx->add($_);
 	if ($_ =~ /^\S+_(\d+)\t+(.+)/)
 	{
 	    my ($id, $annotation) = ($1, $2);
@@ -105,12 +111,14 @@ for my $manual (@manual_annotations)
     }
     my $num_manuals = @ids_with_manual+0;
     my $percent_manual = $num_manuals/((keys %mascot_ids)+0)*100;
-    $log->info(sprintf("Found %d entries with manual annoation from file '%s' (%.1f %%)", $num_manuals, $manual, $percent_manual));
+    $log->info(sprintf("Found %d entries with manual annoation from file '%s' (%.1f %%) (MD5-Input: %s)", $num_manuals, $manual, $percent_manual, $ctx->hexdigest));
 }
 
+$ctx = Digest::MD5->new;
 open(FH, "<", $interproscan_file) || die "Unable to open Interproscan file '$interproscan_file': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
     if ($_ =~ /^\S*?(\d+)\.(p\d+)/)
     {
 	my ($id, $protein) = ($1, $2);
@@ -134,11 +142,14 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_interpros = @ids_with_interpro+0;
 my $percent_interpro = $num_interpros/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with interproscan information (%.1f %%)", $num_interpros, $percent_interpro));
+$log->info(sprintf("Found %d entries with interproscan information (%.1f %%) (MD5-Input: %s)", $num_interpros, $percent_interpro, $ctx->hexdigest));
 
+$ctx = Digest::MD5->new;
 open(FH, "<", $hmmer_file) || die "Unable to open hmmer file '$hmmer_file': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
+
     next if (/^#/);
 
     chomp;
@@ -175,11 +186,14 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_hmmer = @ids_with_hmmer+0;
 my $percent_hmmer = $num_hmmer/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with hmmer information (%.1f %%)", $num_hmmer, $percent_hmmer));
+$log->info(sprintf("Found %d entries with hmmer information (%.1f %%) (MD5-Input: %s)", $num_hmmer, $percent_hmmer, $ctx->hexdigest));
 
+$ctx = Digest::MD5->new;
 open(FH, "<", $jackhmmer_file) || die "Unable to open jackhmmer file '$jackhmmer_file': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
+
     next if (/^#/);
 
     chomp;
@@ -216,12 +230,15 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_jackhmmer = @ids_with_jackhmmer+0;
 my $percent_jackhmmer = $num_jackhmmer/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with jackhmmer information (%.1f %%)", $num_jackhmmer, $percent_jackhmmer));
+$log->info(sprintf("Found %d entries with jackhmmer information (%.1f %%) (MD5-Input: %s)", $num_jackhmmer, $percent_jackhmmer, $ctx->hexdigest));
 
+$ctx = Digest::MD5->new;
 open(FH, "<", $quantification_file) || die "Unable to open quantification file '$quantification_file': $!\n";
 my @fieldnames = ();
 while(<FH>)
 {
+    $ctx->add($_);
+
     if (/^#/)
     {
 	chomp;
@@ -258,11 +275,14 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_quantification = @ids_with_quantification+0;
 my $percent_quantification = $num_quantification/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with quantification information (%.1f %%)", $num_quantification, $percent_quantification));
+$log->info(sprintf("Found %d entries with quantification information (%.1f %%) (MD5-Input: %s)", $num_quantification, $percent_quantification, $ctx->hexdigest));
 
+$ctx = Digest::MD5->new;
 open(FH, "<", $toxprot_file) || die "Unable to open toxprot file '$toxprot_file': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
+
     if (/^#/)
     {
 	chomp;
@@ -305,11 +325,13 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_toxprot = @ids_with_toxprot+0;
 my $percent_toxprot = $num_toxprot/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with toxprot information (%.1f %%)", $num_toxprot, $percent_toxprot));
+$log->info(sprintf("Found %d entries with toxprot information (%.1f %%) (MD5-Input: %s)", $num_toxprot, $percent_toxprot, $ctx->hexdigest));
 
+$ctx = Digest::MD5->new;
 open(FH, "<", $ncbi_file) || die "Unable to open ncbi file '$ncbi_file': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
     if (/^#/)
     {
 	chomp;
@@ -349,12 +371,15 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_ncbi = @ids_with_ncbi+0;
 my $percent_ncbi = $num_ncbi/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with ncbi information (%.1f %%)", $num_ncbi, $percent_ncbi));
+$log->info(sprintf("Found %d entries with ncbi information (%.1f %%) (MD5-Input: %s)", $num_ncbi, $percent_ncbi, $ctx->hexdigest));
 
+$ctx = Digest::MD5->new;
 @fieldnames = ();
 open(FH, "<", $deseq_normalized) || die "Unable to open DESeq normalized file '$deseq_normalized': $!\n";
 while(<FH>)
 {
+    $ctx->add($_);
+
     if ($. == 1)
     {
 	chomp;
@@ -396,16 +421,18 @@ foreach my $id (keys %mascot_ids)
 }
 my $num_deseqnormalized = @ids_with_normalized_counts+0;
 my $percent_deseqnormalized = $num_deseqnormalized/((keys %mascot_ids)+0)*100;
-$log->info(sprintf("Found %d entries with DESeq normalized information (%.1f %%)", $num_deseqnormalized, $percent_deseqnormalized));
+$log->info(sprintf("Found %d entries with DESeq normalized information (%.1f %%) (MD5-Input: %s)", $num_deseqnormalized, $percent_deseqnormalized, $ctx->hexdigest));
 
 foreach my $diffseq_file (@deseq_results)
 {
     @fieldnames = ();
     my ($experiment) = $diffseq_file =~ /([^_]+)\.mat$/;
 
+    $ctx = Digest::MD5->new;
     open(FH, "<", $diffseq_file) || die "Unable to open DESeq diffseq file '$diffseq_file': $!\n";
     while(<FH>)
     {
+	$ctx->add($_);
 	if ($. == 1)
 	{
 	    chomp;
@@ -453,9 +480,11 @@ foreach my $diffseq_file (@deseq_results)
     }
     my $num_diffseq = @ids_with_diffseq_counts+0;
     my $percent_diffseq = $num_diffseq/((keys %mascot_ids)+0)*100;
-    $log->info(sprintf("Found %d entries with DESeq diffseq information (%.1f %%) for input file '%s'", $num_diffseq, $percent_diffseq, $diffseq_file));
+    $log->info(sprintf("Found %d entries with DESeq diffseq information (%.1f %%) for input file '%s' (MD5-Input: %s)", $num_diffseq, $percent_diffseq, $diffseq_file, $ctx->hexdigest));
 }
 
+my $ctx_interpro = Digest::MD5->new;
+my $ctx_output   = Digest::MD5->new;
 open(FH, ">", $table_out) || die "Unable to open output table file '$table_out': $!\n";
 open(INTERPRO, ">", $interpro_out) || die "Unable to open interpro output table file '$interpro_out': $!\n";
 
@@ -467,7 +496,7 @@ foreach my $diffseq_file (@deseq_results)
     push(@diffseq_fields, map { $experiment."_".$_ } (qw(log2foldchange significant padj)));
 }
 
-print FH join("\t",
+my $line = join("\t",
 	      "transcript",
 	      "vg_cov",
 	      "vg_tpm",
@@ -491,7 +520,10 @@ print FH join("\t",
 	      "HMMER bitscore",
 	      "JACKHMMER subject",
 	      "JACKHMMER bitscore"
-    ), "\n";
+    )."\n";
+
+print FH $line;
+$ctx_output->add($line);
 
 foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 {
@@ -503,6 +535,7 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 	{
 	    $_ =~ s/^\S+_(\d+)(\.p\d+)/pitu_v1_$1$2/;
 	    print INTERPRO $_;
+	    $ctx_interpro->add($_);
 	}
     }
 
@@ -514,7 +547,7 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 	push(@diffseq_fields, map { $mascot_ids{$id}{diffseq}{$experiment}{$_} } (qw(log2foldchange significant padj)));
     }
 
-    print FH join("\t",
+    my $line = join("\t",
 		  "pitu_v1_".$id,
 		  $mascot_ids{$id}{quantification}{'./stringtie/3_8_dta.gtf_cov'},
 		  $mascot_ids{$id}{quantification}{'./stringtie/3_8_dta.gtf_tpm'},
@@ -534,7 +567,12 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 		  ((exists $mascot_ids{$id}{hmmer}{bitscore}) ? $mascot_ids{$id}{hmmer}{bitscore} : ""),
 		  ((exists $mascot_ids{$id}{jackhmmer}{jackhmmerhit}) ? $mascot_ids{$id}{jackhmmer}{jackhmmerhit} : ""),
 		  ((exists $mascot_ids{$id}{jackhmmer}{bitscore}) ? $mascot_ids{$id}{jackhmmer}{bitscore} : ""),
-	), "\n";
+	)."\n";
+    print FH $line;
+    $ctx_output->add($line);
 }
 close(INTERPRO) || die "Unable to close interpro output table file '$interpro_out': $!\n";
 close(FH) || die "Unable to close output table file '$table_out': $!\n";
+
+$log->info(sprintf("Output file MD5: %s", $ctx_output->hexdigest));
+$log->info(sprintf("Interpro output file MD5: %s", $ctx_interpro->hexdigest));
