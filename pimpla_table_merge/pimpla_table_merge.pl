@@ -21,7 +21,7 @@ my $conf = q(
   log4perl.appender.Screen.layout = Log::Log4perl::Layout::SimpleLayout
 );
 
-use version 0.77; our $VERSION = version->declare('v1.1.0');
+use version 0.77; our $VERSION = version->declare('v1.2.0');
 
 # ... passed as a reference to init()
 Log::Log4perl::init( \$conf );
@@ -35,6 +35,7 @@ my $quantification_file = "";
 my $hmmer_file          = "";
 my $jackhmmer_file      = "";
 my $deseq_normalized    = "";
+my @deseq_results       = ();
 my @manual_annotations  = ();
 my $interpro_out        = "interpro.tsv";
 my $table_out           = "output.tsv";
@@ -48,12 +49,14 @@ GetOptions(
     "hmmer=s"          => \$hmmer_file,
     "jackhmmer=s"      => \$jackhmmer_file,
     "deseqnormal=s"    => \$deseq_normalized,
+    "deseqdiffseq=s@"  => \@deseq_results,
     "manual=s@"        => \@manual_annotations,
     "out=s"            => \$table_out,
     "out_interpro=s"   => \$interpro_out
     ) || die;
 
 @manual_annotations = split(/,/, join(",", @manual_annotations));
+@deseq_results = split(/,/, join(",", @deseq_results));
 
 my %mascot_ids = ();
 
@@ -395,8 +398,74 @@ my $num_deseqnormalized = @ids_with_normalized_counts+0;
 my $percent_deseqnormalized = $num_deseqnormalized/((keys %mascot_ids)+0)*100;
 $log->info(sprintf("Found %d entries with DESeq normalized information (%.1f %%)", $num_deseqnormalized, $percent_deseqnormalized));
 
+foreach my $diffseq_file (@deseq_results)
+{
+    @fieldnames = ();
+    my ($experiment) = $diffseq_file =~ /([^_]+)\.mat$/;
+
+    open(FH, "<", $diffseq_file) || die "Unable to open DESeq diffseq file '$diffseq_file': $!\n";
+    while(<FH>)
+    {
+	if ($. == 1)
+	{
+	    chomp;
+	    @fieldnames = split(",", $_);
+	    # skip first field
+	    shift @fieldnames;
+	    next;
+	}
+	chomp;
+	my @fields = split(",", $_);
+	shift @fields;
+	my %data = ();
+	@data{@fieldnames} = @fields;
+
+	if ($data{id} =~ /^\S+_(\d+)$/)
+	{
+	    my ($id) = ($1);
+	    if (exists $mascot_ids{$id})
+	    {
+		$mascot_ids{$id}{diffseq}{$experiment} = {
+		    id => $id,
+		    'log2foldchange' => $data{log2FoldChange},
+		    'significant'    => (($data{padj} <= 0.05) ? "YES" : "NO"),
+		    'padj'           => $data{padj}
+		};
+	    }
+	}
+    }
+    close(FH) || die "Unable to close DESeq diffseq '$diffseq_file': $!\n";
+
+    my @ids_with_diffseq_counts = ();
+    foreach my $id (keys %mascot_ids)
+    {
+	if (exists $mascot_ids{$id}{diffseq}{$experiment})
+	{
+	    push(@ids_with_diffseq_counts, $id);
+	} else {
+	    $mascot_ids{$id}{diffseq}{$experiment} = {
+		id               => $id,
+		'log2foldchange' => "-",
+		'significant'    => "NO",
+		'padj'           => "-"
+	    };
+	}
+    }
+    my $num_diffseq = @ids_with_diffseq_counts+0;
+    my $percent_diffseq = $num_diffseq/((keys %mascot_ids)+0)*100;
+    $log->info(sprintf("Found %d entries with DESeq diffseq information (%.1f %%) for input file '%s'", $num_diffseq, $percent_diffseq, $diffseq_file));
+}
+
 open(FH, ">", $table_out) || die "Unable to open output table file '$table_out': $!\n";
 open(INTERPRO, ">", $interpro_out) || die "Unable to open interpro output table file '$interpro_out': $!\n";
+
+my @diffseq_fields = ();
+foreach my $diffseq_file (@deseq_results)
+{
+    my ($experiment) = $diffseq_file =~ /([^_]+)\.mat$/;
+
+    push(@diffseq_fields, map { $experiment."_".$_ } (qw(log2foldchange significant padj)));
+}
 
 print FH join("\t",
 	      "transcript",
@@ -409,6 +478,7 @@ print FH join("\t",
 	      "vg_DESeq_normalized",
 	      "bf_DESeq_normalized",
 	      "bm_DESeq_normalized",
+	      @diffseq_fields,
 	      "Venom Related Protein Description",
 	      "ToxProt_Subject",
 	      "ToxProt_Description",
@@ -436,6 +506,14 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 	}
     }
 
+    my @diffseq_fields = ();
+    foreach my $diffseq_file (@deseq_results)
+    {
+	my ($experiment) = $diffseq_file =~ /([^_]+)\.mat$/;
+
+	push(@diffseq_fields, map { $mascot_ids{$id}{diffseq}{$experiment}{$_} } (qw(log2foldchange significant padj)));
+    }
+
     print FH join("\t",
 		  "pitu_v1_".$id,
 		  $mascot_ids{$id}{quantification}{'./stringtie/3_8_dta.gtf_cov'},
@@ -447,6 +525,7 @@ foreach my $id (sort {$a <=> $b} (keys %mascot_ids))
 		  $mascot_ids{$id}{deseqnormalized}{venomgland},
 		  $mascot_ids{$id}{deseqnormalized}{femalebody},
 		  $mascot_ids{$id}{deseqnormalized}{malebody},
+		  @diffseq_fields,
 		  join(";", @{$mascot_ids{$id}{manual}}),
 		  ( map { exists $mascot_ids{$id}{toxprot}{$_} ? $mascot_ids{$id}{toxprot}{$_} : "" } ("subject", "description", "bitscore")),
 		  ( map { exists $mascot_ids{$id}{ncbi}{$_} ? $mascot_ids{$id}{ncbi}{$_} : "" } ("subject", "description", "bitscore")),
