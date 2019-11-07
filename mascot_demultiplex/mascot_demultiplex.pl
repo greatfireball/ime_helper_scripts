@@ -23,7 +23,7 @@ foreach my $seqfile (@seqfiles)
     my $inseq = Bio::SeqIO->new(-file => $seqfile);
     while (my $seq = $inseq->next_seq)
     {
-	die "Epic fail\n" if (exists $id2seq->{$seq->id} && $id2seq->{$seq->is} ne $seq->seq);
+	die "Epic fail\n" if (exists $id2seq->{$seq->id} && $id2seq->{$seq->id} ne $seq->seq);
 
 	$id2seq->{$seq->id} = $seq->seq;
 	push(@{$mapping->{$seq->seq}}, $seq->id);
